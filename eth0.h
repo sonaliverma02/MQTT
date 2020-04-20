@@ -107,9 +107,6 @@ bool etherIsUdp(uint8_t packet[]);
 bool IsArpResponse(uint8_t packet[]);
 uint8_t* etherGetUdpData(uint8_t packet[]);
 void etherSendUdpResponse(uint8_t packet[], uint8_t* udpData, uint8_t udpSize);
-void sendDHCPmessage(uint8_t packet[], uint8_t type, uint8_t ipAdd[]);
-void SendDhcpRequest(uint8_t packet[], uint8_t type, uint8_t ipAdd[]);
-void SendDhcpRefresh(uint8_t packet[], uint8_t type, uint8_t ipAdd[]);
 
 void etherEnableDhcpMode();
 void etherDisableDhcpMode();
@@ -118,15 +115,14 @@ bool IsMqttEnabled();
 void etherEnablemqtt();
 void etherDisablemqtt();
 bool etherIsIpValid();
-bool IsDhcpOffer(uint8_t packet[]);
-bool IsDhcpAck(uint8_t packet[]);
-bool IsDhcpNAck(uint8_t packet[]);
 bool IsTcpSynAck(uint8_t packet[]);
 bool TcpListen(uint8_t packet[]);
 bool IsTcpAck(uint8_t packet[]);
 bool IsTcpTelnet(uint8_t packet[]);
 bool IsTcpFin(uint8_t packet[]);
 bool ISTcpFinAck(uint8_t packet[]);
+bool IsMqttConnectAck(uint8_t packet[]);
+bool IsMqttpublishServer(uint8_t packet[]);
 
 void etherSetIpAddress(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
 void etherGetIpAddress(uint8_t ip[4]);
@@ -140,8 +136,6 @@ void etherSetMacAddress(uint8_t mac0, uint8_t mac1, uint8_t mac2, uint8_t mac3, 
 void etherGetMacAddress(uint8_t mac[6]);
 void etherSetMqttBrkIp(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
 void etherGetMqttBrkIpAddress(uint8_t ip[4]);
-void CollectDhcpOfferData(uint8_t packet[]);
-void CollectDhcpAckData(uint8_t packet[]);
 
 void SendTcpSynmessage(uint8_t packet[]);
 void SendTcpSynAckmessage(uint8_t packet[]);
@@ -150,6 +144,8 @@ void SendTcpPushAck(uint8_t packet[]);
 void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize);
 void SendTcpFin(uint8_t packet[]);
 void SendTcpLastAck(uint8_t packet[]);
+
+void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data);
 
 uint16_t htons(uint16_t value);
 #define ntohs htons

@@ -62,6 +62,7 @@ extern uint8_t DhcpipGwAddress[4];
 uint8_t state;
 uint8_t tcpstate = TCPCLOSED;
 bool tcp = true;
+bool Pubflag = false;
 //bool initflag = true;
 //-----------------------------------------------------------------------------
 // Subroutines                
@@ -253,8 +254,9 @@ int main(void)
 {
     uint8_t* udpData;
     uint8_t data[MAX_PACKET_SIZE];
-    //uint8_t ipadd[4] = {0,0,0,0};  //need to look after it
-    //uint8_t type = 53;
+    char* Pub_topic;
+    char* Pub_data;
+
     USER_DATA info;
 
 
@@ -313,6 +315,13 @@ int main(void)
                  }
 
            }
+
+            if(isCommand(&info,"publish",3))
+            {
+                Pub_topic = getFieldString(&info,2);
+                Pub_data = getFieldString(&info,3);
+                Pubflag = true;
+            }
             if(isCommand(&info,"ifconfig",1))
             {
                 displayConnectionInfo();
@@ -323,29 +332,7 @@ int main(void)
                 NVIC_APINT_R = 0x05FA0004;
             }
         }
-        /*
-        if(state == DHCPREQUEST)//in case of cb_renew
-        {
-            SendDhcpRequest(data,type,ipadd);
-            state = REQUESTING;
-        }
 
-        if(etherIsDhcpEnabled())
-        {
-                if(state == INIT)
-                {
-                            initimer();
-                            startPeriodicTimer((_callback)cbdiscover, 15);
-                            state = DHCPDISCOVER;
-                }
-
-                if(state == DHCPDISCOVER)
-                {
-                            sendDHCPmessage(data,type,ipadd);
-                            state = DHCPOFFER;
-                }
-        }
-        */
         // Packet processing
         if(tcpstate == TCPCLOSED)
         {
@@ -426,19 +413,18 @@ int main(void)
              }
              if(tcpstate == TCPESTABLISHED)
              {
-                 /*
-                if(IsTcpTelnet(data))
+                 if(IsMqttConnectAck(data))
                  {
-                     SendTcpAck(data);
-                     _delay_cycles(6);
-                     SendTcpPushAck(data);
-                     //SendTcpmessage(data,(uint8_t*)"\r\nHello\r\n",9);
+                     if(Pubflag)//if client is sending publish
+                     {
+                         SendMqttPublishClient(data,Pub_topic,Pub_data);
+                     }
 
-                     _delay_cycles(6);
+                     if(IsMqttpublishServer(data))// if server is sending publish
+                     {
 
-                     tcpstate = TCPFINWAIT1;
+                     }
                  }
-                 */
 
 
              }
@@ -485,4 +471,3 @@ int main(void)
 
      }
 }
-
