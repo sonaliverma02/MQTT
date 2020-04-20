@@ -149,96 +149,96 @@ uint8_t DhcpipGwAddress[4];
 
 typedef struct _enc28j60Frame // 4-bytes
 {
-  uint16_t size;
-  uint16_t status;
-  uint8_t data;
+    uint16_t size;
+    uint16_t status;
+    uint8_t data;
 } enc28j60Frame;
 
 typedef struct _etherFrame // 14-bytes
 {
-  uint8_t destAddress[6];
-  uint8_t sourceAddress[6];
-  uint16_t frameType;
-  uint8_t data;
+    uint8_t destAddress[6];
+    uint8_t sourceAddress[6];
+    uint16_t frameType;
+    uint8_t data;
 } etherFrame;
 
 typedef struct _ipFrame // minimum 20 bytes
 {
-  uint8_t revSize;
-  uint8_t typeOfService;
-  uint16_t length;
-  uint16_t id;
-  uint16_t flagsAndOffset;
-  uint8_t ttl;
-  uint8_t protocol;
-  uint16_t headerChecksum;
-  uint8_t sourceIp[4];
-  uint8_t destIp[4];
+    uint8_t revSize;
+    uint8_t typeOfService;
+    uint16_t length;
+    uint16_t id;
+    uint16_t flagsAndOffset;
+    uint8_t ttl;
+    uint8_t protocol;
+    uint16_t headerChecksum;
+    uint8_t sourceIp[4];
+    uint8_t destIp[4];
 } ipFrame;
 
 typedef struct _icmpFrame
 {
-  uint8_t type;
-  uint8_t code;
-  uint16_t check;
-  uint16_t id;
-  uint16_t seq_no;
-  uint8_t data;
+    uint8_t type;
+    uint8_t code;
+    uint16_t check;
+    uint16_t id;
+    uint16_t seq_no;
+    uint8_t data;
 } icmpFrame;
 
 typedef struct _arpFrame
 {
-  uint16_t hardwareType;
-  uint16_t protocolType;
-  uint8_t hardwareSize;
-  uint8_t protocolSize;
-  uint16_t op;
-  uint8_t sourceAddress[6];
-  uint8_t sourceIp[4];
-  uint8_t destAddress[6];
-  uint8_t destIp[4];
+    uint16_t hardwareType;
+    uint16_t protocolType;
+    uint8_t hardwareSize;
+    uint8_t protocolSize;
+    uint16_t op;
+    uint8_t sourceAddress[6];
+    uint8_t sourceIp[4];
+    uint8_t destAddress[6];
+    uint8_t destIp[4];
 } arpFrame;
 
 typedef struct _udpFrame // 8 bytes
 {
-  uint16_t sourcePort;
-  uint16_t destPort;
-  uint16_t length;
-  uint16_t check;
-  uint8_t  data;
+    uint16_t sourcePort;
+    uint16_t destPort;
+    uint16_t length;
+    uint16_t check;
+    uint8_t  data;
 } udpFrame;
 
 typedef struct _dhcpFrame
 {
-  uint8_t op;
-  uint8_t htype;
-  uint8_t hlen;
-  uint8_t hops;
-  uint32_t  xid;
-  uint16_t secs;
-  uint16_t flags;
-  uint8_t ciaddr[4];
-  uint8_t yiaddr[4];
-  uint8_t siaddr[4];
-  uint8_t giaddr[4];
-  uint8_t chaddr[16];
-  uint8_t data[192];
-  uint32_t magicCookie;
-  uint8_t options[50];
+    uint8_t op;
+    uint8_t htype;
+    uint8_t hlen;
+    uint8_t hops;
+    uint32_t  xid;
+    uint16_t secs;
+    uint16_t flags;
+    uint8_t ciaddr[4];
+    uint8_t yiaddr[4];
+    uint8_t siaddr[4];
+    uint8_t giaddr[4];
+    uint8_t chaddr[16];
+    uint8_t data[192];
+    uint32_t magicCookie;
+    uint8_t options[50];
 } dhcpFrame;
 
 typedef struct _tcpFrame
 {
-   uint16_t sourcePort;
-   uint16_t destPort;
-   uint32_t SeqNum;
-   uint32_t AckNum;
-   uint16_t DoRF;
-   uint16_t WindowSize;
-   uint16_t CheckSum;
-   uint16_t UrgentPtr;
-   //uint8_t  OptionsPad;
-   uint8_t  data;
+    uint16_t sourcePort;
+    uint16_t destPort;
+    uint32_t SeqNum;
+    uint32_t AckNum;
+    uint16_t DoRF;
+    uint16_t WindowSize;
+    uint16_t CheckSum;
+    uint16_t UrgentPtr;
+    //uint8_t  OptionsPad;
+    uint8_t  data;
 }tcpFrame;
 
 typedef struct _tcpOptions
@@ -422,7 +422,7 @@ void etherInit(uint16_t mode)
     etherWriteReg(ERXSTH, HIBYTE(0x0000));
     etherWriteReg(ERXNDL, LOBYTE(0x1A09));
     etherWriteReg(ERXNDH, HIBYTE(0x1A09));
-   
+
     // initialize receiver write and read ptrs
     // at startup, will write from 0 to 1A08 only and will not overwrite rd ptr
     etherWriteReg(ERXWRPTL, LOBYTE(0x0000));
@@ -440,7 +440,7 @@ void etherInit(uint16_t mode)
     // bring mac out of reset
     etherSetBank(MACON2);
     etherWriteReg(MACON2, 0);
-  
+
     // enable mac rx, enable pause control for full duplex
     etherWriteReg(MACON1, TXPAUS | RXPAUS | MARXEN);
 
@@ -572,45 +572,45 @@ bool etherPutPacket(uint8_t packet[], uint16_t size)
 {
     uint16_t i;
 
-      // clear out any tx errors
-      if ((etherReadReg(EIR) & TXERIF) != 0)
-      {
-          etherClearReg(EIR, TXERIF);
-          etherSetReg(ECON1, TXRTS);
-          etherClearReg(ECON1, TXRTS);
-      }
+    // clear out any tx errors
+    if ((etherReadReg(EIR) & TXERIF) != 0)
+    {
+        etherClearReg(EIR, TXERIF);
+        etherSetReg(ECON1, TXRTS);
+        etherClearReg(ECON1, TXRTS);
+    }
 
-      // set DMA start address
-      etherSetBank(EWRPTL);
-      etherWriteReg(EWRPTL, LOBYTE(0x1A0A));
-      etherWriteReg(EWRPTH, HIBYTE(0x1A0A));
+    // set DMA start address
+    etherSetBank(EWRPTL);
+    etherWriteReg(EWRPTL, LOBYTE(0x1A0A));
+    etherWriteReg(EWRPTH, HIBYTE(0x1A0A));
 
-      // start FIFO buffer write
-      etherWriteMemStart();
+    // start FIFO buffer write
+    etherWriteMemStart();
 
-      // write control byte
-      etherWriteMem(0);
+    // write control byte
+    etherWriteMem(0);
 
-      // write data
-      for (i = 0; i < size; i++)
-          etherWriteMem(packet[i]);
+    // write data
+    for (i = 0; i < size; i++)
+        etherWriteMem(packet[i]);
 
-      // stop write
-      etherWriteMemStop();
+    // stop write
+    etherWriteMemStop();
 
-      // request transmit
-      etherWriteReg(ETXSTL, LOBYTE(0x1A0A));
-      etherWriteReg(ETXSTH, HIBYTE(0x1A0A));
-      etherWriteReg(ETXNDL, LOBYTE(0x1A0A+size));
-      etherWriteReg(ETXNDH, HIBYTE(0x1A0A+size));
-      etherClearReg(EIR, TXIF);
-      etherSetReg(ECON1, TXRTS);
+    // request transmit
+    etherWriteReg(ETXSTL, LOBYTE(0x1A0A));
+    etherWriteReg(ETXSTH, HIBYTE(0x1A0A));
+    etherWriteReg(ETXNDL, LOBYTE(0x1A0A+size));
+    etherWriteReg(ETXNDH, HIBYTE(0x1A0A+size));
+    etherClearReg(EIR, TXIF);
+    etherSetReg(ECON1, TXRTS);
 
-      // wait for completion
-      while ((etherReadReg(ECON1) & TXRTS) != 0);
+    // wait for completion
+    while ((etherReadReg(ECON1) & TXRTS) != 0);
 
-      // determine success
-      return ((etherReadReg(ESTAT) & TXABORT) == 0);
+    // determine success
+    return ((etherReadReg(ESTAT) & TXABORT) == 0);
 }
 
 // Calculate sum of words
@@ -629,7 +629,7 @@ void etherSumWords(void* data, uint16_t sizeInBytes)
             sum += data_temp << 8;
         }
         else
-          sum += *pData;
+            sum += *pData;
         phase = 1 - phase;
         pData++;
     }
@@ -641,7 +641,7 @@ uint16_t getEtherChecksum()
     uint16_t result;
     // this is based on rfc1071
     while ((sum >> 16) > 0)
-      sum = (sum & 0xFFFF) + (sum >> 16);
+        sum = (sum & 0xFFFF) + (sum >> 16);
     result = sum & 0xFFFF;
     return ~result;
 }
@@ -936,7 +936,7 @@ bool IsDhcpAck(uint8_t packet[])
     uint16_t tmp16;
     if (ok)
     {
-           // 32-bit sum over pseudo-header
+        // 32-bit sum over pseudo-header
         //udp->length = htons(8 + 240 + 32);
         sum = 0;
         etherSumWords(ip->sourceIp, 8);
@@ -1041,6 +1041,7 @@ bool IsTcpSynAck(uint8_t packet[])
 
     return ok;
 }
+
 bool IsTcpAck(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1165,6 +1166,63 @@ bool ISTcpFinAck(uint8_t packet[])
 
     return ok;
 }
+
+bool IsMqttConnectAck(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0x20); // conforming connect Ack
+        ok &= (copydata[2] == 0);   // return code
+    }
+
+    return ok;
+}
+
+bool IsMqttpublishServer(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    copydata[0] = (copydata[0] & 0xF0); // mask QoS part and retain command type
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0x30); // compare with publish command
+    }
+
+    return ok;
+}
+
+
 // Gets pointer to UDP payload of frame
 uint8_t* etherGetUdpData(uint8_t packet[])
 {
@@ -1230,628 +1288,15 @@ void etherSendUdpResponse(uint8_t packet[], uint8_t* udpData, uint8_t udpSize)
     etherPutPacket((uint8_t*)ether, 22 + ((ip->revSize & 0xF) * 4) + udpSize);
 }
 
-
-void sendDHCPmessage(uint8_t packet[], uint8_t type, uint8_t ipAdd[])
+static uint8_t stringLen(char* str)
 {
-    uint8_t i;
-    etherFrame* ether = (etherFrame*)packet;
-    ipFrame* ip = (ipFrame*)&ether->data;
-    ip->revSize = 0x45;
-    udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    dhcpFrame* dhcp = (dhcpFrame*)&udp->data;
+    int count = 0;
 
-
-    //populating ether frame
-    for(i=0;i<6;i++)
+    while(str[count]!=0)
     {
-        ether->destAddress[i] =  0xFF;
+        count++;
     }
-    ether->sourceAddress[0] = 2;
-    ether->sourceAddress[1] = 3;
-    ether->sourceAddress[2] = 4;
-    ether->sourceAddress[3] = 5;
-    ether->sourceAddress[4] = 6;
-    ether->sourceAddress[5] = 141;
-
-    ether->frameType = htons(0x0800);
-
-
-    //populating ip frame
-    ip->typeOfService = 0;
-    ip->id = 0;
-    ip->protocol = 17;//udp
-    ip->flagsAndOffset = 0;
-    ip->ttl = 128;
-    for(i=0;i<4;i++)
-    {
-        ip->sourceIp[i] = 0;
-    }
-    for(i=0;i<4;i++)
-    {
-        ip->destIp[i] = 255;
-    }
-
-    //populating udp frame
-    udp->sourcePort = htons(68);
-    udp->destPort = htons(67);
-
-
-    //populating dhcp frame
-    dhcp->op = BOOTREQUEST;
-    dhcp->htype = 0x01;
-    dhcp->hlen = 6;
-    dhcp->hops = 0;
-    dhcp->xid = 0xdca15b8c;
-    dhcp->secs = 0;
-    dhcp->flags = htons(0x8000);
-    dhcp->ciaddr[0] = 0;
-    dhcp->ciaddr[1] = 0;
-    dhcp->ciaddr[2] = 0;
-    dhcp->ciaddr[3] = 0;
-    dhcp->yiaddr[0] = 0;
-    dhcp->yiaddr[1] = 0;
-    dhcp->yiaddr[2] = 0;
-    dhcp->yiaddr[3] = 0;
-    dhcp->siaddr[0] = 0;
-    dhcp->siaddr[1] = 0;
-    dhcp->siaddr[2] = 0;
-    dhcp->siaddr[3] = 0;
-    dhcp->giaddr[0] = 0;
-    dhcp->giaddr[1] = 0;
-    dhcp->giaddr[2] = 0;
-    dhcp->giaddr[3] = 0;
-    dhcp->chaddr[0] = 2;
-    dhcp->chaddr[1] = 3;
-    dhcp->chaddr[2] = 4;
-    dhcp->chaddr[3] = 5;
-    dhcp->chaddr[4] = 6;
-    dhcp->chaddr[5] = 141;
-    for(i=6;i<16;i++)
-    {
-        dhcp->chaddr[i] = 0;
-    }
-    for( i=0; i<192; i++)
-    {
-        dhcp->data[i] = 0;
-    }
-
-    dhcp->magicCookie = 0x63538263;
-
-
-    dhcp->options[0] = type; // type 53
-    dhcp->options[1] = 1;
-    dhcp->options[2] = DHCPDISCOVER;
-    dhcp->options[3] = 55; // parameter request list
-    dhcp->options[4] = 5;  // hardware length
-    dhcp->options[5] = 1;  // SN mask
-    dhcp->options[6] = 2;  // time offset
-    dhcp->options[7] = 3;  // router
-    dhcp->options[8] = 6;  // DNS
-    dhcp->options[9] = 51; // lease time
-    dhcp->options[10] = 61; // client identifier
-    dhcp->options[11] = 7;
-    dhcp->options[12] = 0x01;
-    dhcp->options[13] = 0x02;
-    dhcp->options[14] = 0x03;
-    dhcp->options[15] = 0x04;
-    dhcp->options[16] = 0x05;
-    dhcp->options[17] = 0x06;
-    dhcp->options[18] = 0x8D;
-
-    dhcp->options[19] = 255; // end
-
-    uint16_t tmp16;
-
-    ip->length = htons(((ip->revSize & 0xF) * 4) + 8 + 240+20 );
-    sum=0;
-    //uint16_t dhcpSize = sizeof(dhcpFrame);
-    etherSumWords(&ip->revSize, 10);
-    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-    ip->headerChecksum = getEtherChecksum();
-
-
-    udp->length = htons(8 + 240 + 20 );
-    sum = 0;
-    etherSumWords(ip->sourceIp, 8);
-    tmp16 = ip->protocol;
-    sum += (tmp16 & 0xff) << 8;
-    etherSumWords(&udp->length, 2);
-    // add udp header except crc
-    etherSumWords(udp, 6);
-    etherSumWords(&udp->data, 240 + 20);
-    udp->check = getEtherChecksum();
-
-
-    etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) + 8 + 240+20);
-
-}
-
-uint8_t etherOfferBuff[HW_ADD_LENGTH];
-uint8_t ipOfferBuff[IP_ADD_LENGTH];
-uint8_t DhcpYraddOffBuff[IP_ADD_LENGTH];
-uint8_t DhcpGiaddOffBuff[IP_ADD_LENGTH];
-uint8_t DhcpSerIdOffBuff[IP_ADD_LENGTH];
-int32_t DhcpOffLTime = 0;
-uint8_t DhcpSnOffBuff[IP_ADD_LENGTH];
-uint8_t DhcpRoutOffBuff[IP_ADD_LENGTH];
-
-void CollectDhcpOfferData(uint8_t packet[])
-{
-    etherFrame* ether = (etherFrame*)packet;
-    ipFrame* ip = (ipFrame*)&ether->data;
-    udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    dhcpFrame* dhcp = (dhcpFrame*)&udp->data;
-
-    uint8_t i = 0;
-
-    // store source fields in buffer
-    for (i = 0; i < HW_ADD_LENGTH; i++)
-    {
-        etherOfferBuff[i] = ether->sourceAddress[i];
-    }
-
-    // store source Ip in buffer
-    for (i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        ipOfferBuff[i] = ip->sourceIp[i];
-    }
-
-    // store your IP in buffer
-    for (i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        DhcpYraddOffBuff[i] = dhcp->yiaddr[i];
-    }
-
-    // store your relay IP in buffer
-    for (i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        DhcpGiaddOffBuff[i] = dhcp->giaddr[i];
-    }
-/*
- * storing options field from DHCP offer
- */
-    uint8_t j, len;
-    uint32_t temp;
-
-    i = 3; // skipping type 53 in options
-
-
-    while( dhcp->options[i]!= 255)
-    {
-        switch(dhcp->options[i])
-        {
-        case 1: // save SN mask
-            len = dhcp->options[++i];
-            i++;
-            for (j = 0; j < len; j++)
-            {
-                DhcpSnOffBuff[j] = dhcp->options[i];
-                i++;
-            }
-            break;
-
-        case 3: // save router IP
-            len = dhcp->options[++i];
-            i++;
-            for (j = 0; j < len; j++)
-            {
-                DhcpRoutOffBuff[j] = dhcp->options[i];
-                i++;
-            }
-            break;
-
-        case 51:// save IP address lease time
-            len = dhcp->options[++i];
-            //k = (len*8) - 8;
-            DhcpOffLTime = 0;
-            j=0;
-            //DhcpOffLTime = (uint32_t)dhcp->options[20];
-            while(j < (len-1))
-            {
-                temp = dhcp->options[++i];
-                DhcpOffLTime += (temp & 0xff) ;
-                DhcpOffLTime = DhcpOffLTime << 8;
-                //k = k - 8;
-                j++;
-            }
-            temp = dhcp->options[++i];
-            DhcpOffLTime += temp;
-            i++;
-            break;
-
-        case 54:// store DHCP server Identifier in buffer
-            len = dhcp->options[++i];
-            i++;
-            for (j = 0; j < len; j++)
-            {
-                DhcpSerIdOffBuff[j] = dhcp->options[i];
-                i++;
-            }
-            break;
-
-
-        default:
-            len = dhcp->options[++i];
-            i = i + len;
-            i++;
-        }
-
-    }
-
-}
-
-void  SendDhcpRequest(uint8_t packet[], uint8_t type, uint8_t ipAdd[])
-{
-    uint8_t i;
-    etherFrame* ether = (etherFrame*)packet;
-    ipFrame* ip = (ipFrame*)&ether->data;
-    ip->revSize = 0x45;
-    udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    dhcpFrame* dhcp = (dhcpFrame*)&udp->data;
-
-    //populating ether frame
-        for(i=0;i<6;i++)
-        {
-            ether->destAddress[i] =  0xFF;
-        }
-        ether->sourceAddress[0] = 2;
-        ether->sourceAddress[1] = 3;
-        ether->sourceAddress[2] = 4;
-        ether->sourceAddress[3] = 5;
-        ether->sourceAddress[4] = 6;
-        ether->sourceAddress[5] = 141;
-
-        ether->frameType = htons(0x0800);
-
-
-        //populating ip frame
-        ip->typeOfService = 0;
-        ip->id = 0;
-        ip->protocol = 17;//udp
-        ip->flagsAndOffset = 0;
-        ip->ttl = 128;
-        for(i=0;i<4;i++)
-        {
-            ip->sourceIp[i] = 0;
-        }
-        for(i=0;i<4;i++)
-        {
-            ip->destIp[i] = 255;
-        }
-
-        //populating udp frame
-        udp->sourcePort = htons(68);
-        udp->destPort = htons(67);
-
-
-        //populating dhcp frame
-        dhcp->op = BOOTREQUEST;
-        dhcp->htype = 0x01;
-        dhcp->hlen = 6;
-        dhcp->hops = 0;
-        dhcp->xid = 0xdca15b8c;
-        dhcp->secs = 0;
-        dhcp->flags = htons(0x8000);
-        dhcp->ciaddr[0] = 0;
-        dhcp->ciaddr[1] = 0;
-        dhcp->ciaddr[2] = 0;
-        dhcp->ciaddr[3] = 0;
-        dhcp->yiaddr[0] = 0;
-        dhcp->yiaddr[1] = 0;
-        dhcp->yiaddr[2] = 0;
-        dhcp->yiaddr[3] = 0;
-        dhcp->siaddr[0] = 0;
-        dhcp->siaddr[1] = 0;
-        dhcp->siaddr[2] = 0;
-        dhcp->siaddr[3] = 0;
-        dhcp->giaddr[0] = 0;
-        dhcp->giaddr[1] = 0;
-        dhcp->giaddr[2] = 0;
-        dhcp->giaddr[3] = 0;
-        dhcp->chaddr[0] = 2;
-        dhcp->chaddr[1] = 3;
-        dhcp->chaddr[2] = 4;
-        dhcp->chaddr[3] = 5;
-        dhcp->chaddr[4] = 6;
-        dhcp->chaddr[5] = 141;
-        for(i=6;i<16;i++)
-        {
-            dhcp->chaddr[i] = 0;
-        }
-        for( i=0; i<192; i++)
-        {
-            dhcp->data[i] = 0;
-        }
-
-        dhcp->magicCookie = 0x63538263;
-
-
-        dhcp->options[0] = type; // type 53
-        dhcp->options[1] = 1;
-        dhcp->options[2] = DHCPREQUEST;
-
-        dhcp->options[3] = 61; // client identifier
-        dhcp->options[4] = 7;
-        dhcp->options[5] = 0x01;
-        dhcp->options[6] = 0x02;
-        dhcp->options[7] = 0x03;
-        dhcp->options[8] = 0x04;
-        dhcp->options[9] = 0x05;
-        dhcp->options[10] = 0x06;
-        dhcp->options[11] = 0x8D;
-
-        dhcp->options[12] = 50;// requested IP address
-        dhcp->options[13] = 4;
-        dhcp->options[14] = DhcpYraddOffBuff[0];
-        dhcp->options[15] = DhcpYraddOffBuff[1];
-        dhcp->options[16] = DhcpYraddOffBuff[2];
-        dhcp->options[17] = DhcpYraddOffBuff[3];
-
-        dhcp->options[18] = 54;// DHCP server identifier
-        dhcp->options[19] = 4;
-        dhcp->options[20] = DhcpSerIdOffBuff[0];
-        dhcp->options[21] = DhcpSerIdOffBuff[1];
-        dhcp->options[22] = DhcpSerIdOffBuff[2];
-        dhcp->options[23] = DhcpSerIdOffBuff[3];
-
-        dhcp->options[24] = 55;// parameter request list
-        dhcp->options[25] = 5; // length
-        dhcp->options[26] = 1; // subnet mask
-        dhcp->options[27] = 3; // router
-        dhcp->options[28] = 6; // domain name server
-        dhcp->options[29] = 15;// domain name
-        dhcp->options[30] = 51;//lease time
-
-        dhcp->options[31] = 255; // end
-
-        uint16_t tmp16;
-
-        //IP checksum
-        ip->length = htons(((ip->revSize & 0xF) * 4) + 8 + 240 + 32 );
-        sum=0;
-        //uint16_t dhcpSize = sizeof(dhcpFrame);
-        etherSumWords(&ip->revSize, 10);
-        etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-        ip->headerChecksum = getEtherChecksum();
-
-        //UDP checksum
-        udp->length = htons(8 + 240 + 32 );
-        sum = 0;
-        etherSumWords(ip->sourceIp, 8);
-        tmp16 = ip->protocol;
-        sum += (tmp16 & 0xff) << 8;
-        etherSumWords(&udp->length, 2);
-        // add udp header except crc
-        etherSumWords(udp, 6);
-        etherSumWords(&udp->data, 240 + 32);
-        udp->check = getEtherChecksum();
-
-        etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) + 8 + 240 + 32);
-
-}
-
-
-void CollectDhcpAckData(uint8_t packet[])
-{
-
-    etherFrame* ether = (etherFrame*)packet;
-    ipFrame* ip = (ipFrame*)&ether->data;
-    udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    dhcpFrame* dhcp = (dhcpFrame*)&udp->data;
-
-    uint8_t i = 0;
-
-   /*
-    * Get IP address given by server
-    */
-
-    for(i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        DhcpIpaddress[i] = dhcp->yiaddr[i];
-    }
-
-    /*
-     * Get IP gateway address given by server
-     */
-
-     for(i = 0; i < IP_ADD_LENGTH; i++)
-     {
-         DhcpipGwAddress[i] = dhcp->giaddr[i];
-     }
-
-    /*
-     * storing options field from DHCP ACK
-     */
-        uint8_t j, len;
-        uint32_t temp;
-
-        i = 3; // skipping type 53 in options
-
-        while(dhcp->options[i] != 255)
-        {
-            switch(dhcp->options[i])
-            {
-            case 1:// get Sub net mask fiven by server
-                len = dhcp->options[++i];
-                i++;
-                for (j = 0; j < len; j++)
-                {
-                    ipSubnetMask[j] = dhcp->options[i];
-                    i++;
-                }
-                break;
-
-            case 3: // save router IP
-                len = dhcp->options[++i];
-                i++;
-                for (j = 0; j < len; j++)
-                {
-                    DhcpRoutOffBuff[j] = dhcp->options[i];
-                    i++;
-                }
-                break;
-
-            case 51:// save IP address lease time
-                len = dhcp->options[++i];
-                //k = (len*8) - 8;
-                DhcpOffLTime = 0;
-                j=0;
-                //DhcpOffLTime = (uint32_t)dhcp->options[20];
-                while(j < (len-1))
-                {
-                    temp = dhcp->options[++i];
-                    DhcpOffLTime += (temp & 0xff) ;
-                    DhcpOffLTime = DhcpOffLTime << 8;
-                    //k = k - 8;
-                    j++;
-                }
-                temp = dhcp->options[++i];
-                DhcpOffLTime += temp;
-                i++;
-                break;
-
-            case 54:// store DHCP server Identifier in buffer
-                len = dhcp->options[++i];
-                i++;
-                for (j = 0; j < len; j++)
-                {
-                    DhcpSerIdOffBuff[j] = dhcp->options[i];
-                    i++;
-                }
-                break;
-
-
-            default:
-                len = dhcp->options[++i];
-                i = i + len;
-                i++;
-
-
-            }
-        }
-
-}
-
-void SendDhcpRefresh(uint8_t packet[], uint8_t type, uint8_t ipAdd[])
-{
-    uint8_t i;
-    etherFrame* ether = (etherFrame*)packet;
-    ipFrame* ip = (ipFrame*)&ether->data;
-    ip->revSize = 0x45;
-    udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    dhcpFrame* dhcp = (dhcpFrame*)&udp->data;
-
-    //populating ether frame
-        for(i=0;i<6;i++)
-        {
-            ether->destAddress[i] =  0xFF;
-        }
-        ether->sourceAddress[0] = 2;
-        ether->sourceAddress[1] = 3;
-        ether->sourceAddress[2] = 4;
-        ether->sourceAddress[3] = 5;
-        ether->sourceAddress[4] = 6;
-        ether->sourceAddress[5] = 141;
-
-        ether->frameType = htons(0x0800);
-
-
-        //populating ip frame
-        ip->typeOfService = 0;
-        ip->id = 0;
-        ip->protocol = 17;//udp
-        ip->flagsAndOffset = 0;
-        ip->ttl = 128;
-        for(i=0;i<4;i++)
-        {
-            ip->sourceIp[i] = 0;
-        }
-        for(i=0;i<4;i++)
-        {
-            ip->destIp[i] = 255;
-        }
-
-        //populating udp frame
-        udp->sourcePort = htons(68);
-        udp->destPort = htons(67);
-
-
-        //populating dhcp frame
-        dhcp->op = BOOTREQUEST;
-        dhcp->htype = 0x01;
-        dhcp->hlen = 6;
-        dhcp->hops = 0;
-        dhcp->xid = 0xdca15b8c;
-        dhcp->secs = 0;
-        dhcp->flags = htons(0x8000);
-        dhcp->ciaddr[0] = 0;
-        dhcp->ciaddr[1] = 0;
-        dhcp->ciaddr[2] = 0;
-        dhcp->ciaddr[3] = 0;
-        dhcp->yiaddr[0] = 0;
-        dhcp->yiaddr[1] = 0;
-        dhcp->yiaddr[2] = 0;
-        dhcp->yiaddr[3] = 0;
-        dhcp->siaddr[0] = 0;
-        dhcp->siaddr[1] = 0;
-        dhcp->siaddr[2] = 0;
-        dhcp->siaddr[3] = 0;
-        dhcp->giaddr[0] = 0;
-        dhcp->giaddr[1] = 0;
-        dhcp->giaddr[2] = 0;
-        dhcp->giaddr[3] = 0;
-        dhcp->chaddr[0] = 2;
-        dhcp->chaddr[1] = 3;
-        dhcp->chaddr[2] = 4;
-        dhcp->chaddr[3] = 5;
-        dhcp->chaddr[4] = 6;
-        dhcp->chaddr[5] = 141;
-        for(i=6;i<16;i++)
-        {
-            dhcp->chaddr[i] = 0;
-        }
-        for( i=0; i<192; i++)
-        {
-            dhcp->data[i] = 0;
-        }
-
-        for( i=0; i < IP_ADD_LENGTH; i++)
-        {
-            ipAddress[i] = dhcp->yiaddr[i];
-        }
-        dhcp->magicCookie = 0x63538263;
-
-
-        dhcp->options[0] = type; // type 53
-        dhcp->options[1] = 1;
-        dhcp->options[2] = DHCPRELEASE;
-
-        dhcp->options[3] = 255; // end
-
-        uint16_t tmp16;
-
-        //IP checksum
-        ip->length = htons(((ip->revSize & 0xF) * 4) + 8 + 240 + 4 );
-        sum=0;
-        //uint16_t dhcpSize = sizeof(dhcpFrame);
-        etherSumWords(&ip->revSize, 10);
-        etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-        ip->headerChecksum = getEtherChecksum();
-
-        //UDP checksum
-        udp->length = htons(8 + 240 + 4 );
-        sum = 0;
-        etherSumWords(ip->sourceIp, 8);
-        tmp16 = ip->protocol;
-        sum += (tmp16 & 0xff) << 8;
-        etherSumWords(&udp->length, 2);
-        // add udp header except crc
-        etherSumWords(udp, 6);
-        etherSumWords(&udp->data, 240 + 4);
-        udp->check = getEtherChecksum();
-
-        etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) + 8 + 240 + 4);
-
+     return count;
 }
 
 void SendTcpSynmessage(uint8_t packet[])
@@ -1870,12 +1315,12 @@ void SendTcpSynmessage(uint8_t packet[])
     //uint8_t* tcpoptions;
 
     // populating ether frame
-   ether->destAddress[0] = 0x8c;
-   ether->destAddress[1] = 0x16;
-   ether->destAddress[2] = 0x45;
-   ether->destAddress[3] = 0xd7;
-   ether->destAddress[4] = 0x51;
-   ether->destAddress[5] = 0x2f;
+    ether->destAddress[0] = 0x8c;
+    ether->destAddress[1] = 0x16;
+    ether->destAddress[2] = 0x45;
+    ether->destAddress[3] = 0xd7;
+    ether->destAddress[4] = 0x51;
+    ether->destAddress[5] = 0x2f;
 
     ether->sourceAddress[0] = 2;
     ether->sourceAddress[1] = 3;
@@ -1940,7 +1385,7 @@ void SendTcpSynmessage(uint8_t packet[])
     copyopt[9] = 1;
     copyopt[10] = 4;
     copyopt[11] = 2;
-    */
+     */
 
     ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 4);
     //Ip checksum
@@ -1963,11 +1408,13 @@ void SendTcpSynmessage(uint8_t packet[])
 
     etherSumWords(tcp, 20+4);
     //etherSumWords(tcpopt,4);
-   // etherSumWords(&tcp->data, 0);
+    // etherSumWords(&tcp->data, 0);
     tcp->CheckSum = getEtherChecksum();
 
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 4);
 }
+
+
 
 /*
 void SendTcpSynAckmessage(uint8_t packet[])
@@ -2061,7 +1508,7 @@ void SendTcpSynAckmessage(uint8_t packet[])
 
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 4);
 }
-*/
+ */
 void SendTcpAck(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -2102,12 +1549,12 @@ void SendTcpAck(uint8_t packet[])
         ip->destIp[i] = ip->sourceIp[i];
         ip->sourceIp[i] = temp8;
     }
-/*
+    /*
     for(i = 0; i < IP_ADD_LENGTH; i++)
     {
         ip->sourceIp[i] = DhcpIpaddress[i];
     }
-*/
+     */
     //populating TCP
     uint32_t temp32;
     uint16_t temp16;
@@ -2162,35 +1609,37 @@ void SendTcpAck(uint8_t packet[])
 void SendTcpPushAck(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
-     ipFrame* ip = (ipFrame*)&ether->data;
-     ip->revSize = 0x45;
-     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
-     uint8_t i,flags,Offset;
-     uint16_t x = 20;
-     uint16_t a;
+    uint8_t i,flags,Offset;
+    uint16_t x = 20;
+    uint16_t a;
 
-     uint8_t *copyData ;
-     for(i = 0; i < HW_ADD_LENGTH; i++)
-      {
-          ether->destAddress[i] = ether->destAddress[i];
-      }
+    uint8_t *copyData ;
+    ether->destAddress[0] = 0x8c;
+    ether->destAddress[1] = 0x16;
+    ether->destAddress[2] = 0x45;
+    ether->destAddress[3] = 0xd7;
+    ether->destAddress[4] = 0x51;
+    ether->destAddress[5] = 0x2f;
 
-     ether->sourceAddress[0] = 2;
-     ether->sourceAddress[1] = 3;
-     ether->sourceAddress[2] = 4;
-     ether->sourceAddress[3] = 5;
-     ether->sourceAddress[4] = 6;
-     ether->sourceAddress[5] = 141;
+    ether->sourceAddress[0] = 2;
+    ether->sourceAddress[1] = 3;
+    ether->sourceAddress[2] = 4;
+    ether->sourceAddress[3] = 5;
+    ether->sourceAddress[4] = 6;
+    ether->sourceAddress[5] = 141;
 
-     ether->frameType = htons(0x0800);
+    ether->frameType = htons(0x0800);
 
-     //populating IP field
-     ip->typeOfService = 0;
-     ip->ttl = 128;
-     ip->protocol = 6; // TCP
-     ip->id = 0;
- /*
+    //populating IP field
+    ip->typeOfService = 0;
+    ip->ttl = 128;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
+    /*
      for(i = 0; i < IP_ADD_LENGTH; i++)
      {
          ip->destIp[i] = ip->destIp[i];
@@ -2200,53 +1649,53 @@ void SendTcpPushAck(uint8_t packet[])
      {
          ip->sourceIp[i] = DhcpIpaddress[i];
      }
- */
-     //populating TCP
-     tcp->destPort = tcp->destPort;
-     //tcp->sourcePort = htons(23);
+     */
+    //populating TCP
+    tcp->destPort = tcp->destPort;
+    //tcp->sourcePort = htons(23);
 
-     tcp->SeqNum = tcp->SeqNum;
-     tcp->AckNum = tcp->AckNum;
+    tcp->SeqNum = tcp->SeqNum;
+    tcp->AckNum = tcp->AckNum;
 
-     Offset = x >> 2;
-     flags = 0x18; // for PSH and ACK
-     a = (Offset << 12) + flags;
-     tcp->DoRF = htons(a);
-     tcp->WindowSize = htons(1280);
-     tcp->CheckSum = 0;
-     tcp->UrgentPtr = 0;
+    Offset = x >> 2;
+    flags = 0x18; // for PSH and ACK
+    a = (Offset << 12) + flags;
+    tcp->DoRF = htons(a);
+    tcp->WindowSize = htons(1280);
+    tcp->CheckSum = 0;
+    tcp->UrgentPtr = 0;
 
 
-     ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 18);
+    ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 18);
 
-     // 32-bit sum over ip header
-     sum = 0;
-     etherSumWords(&ip->revSize, 10);
-     etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-     ip->headerChecksum = getEtherChecksum();
+    // 32-bit sum over ip header
+    sum = 0;
+    etherSumWords(&ip->revSize, 10);
+    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+    ip->headerChecksum = getEtherChecksum();
 
-     copyData = &tcp->data;
+    copyData = &tcp->data;
 
-     copyData[0] = 0x10;
-     copyData[1] = 16;
-     copyData[2] = 0x00;
-     copyData[3] = 4;
-     copyData[4] = (uint8_t)'M';
-     copyData[5] = (uint8_t)'Q';
-     copyData[6] = (uint8_t)'T';
-     copyData[7] = (uint8_t)'T';
-     copyData[8] = 4;
-     copyData[9] = 2;
-     copyData[10] = 0;
-     copyData[11] = 0x3C;
-     copyData[12] = 0;
-     copyData[13] = 4;
-     copyData[14] = (uint8_t)'P';
-     copyData[15] = (uint8_t)'Q';
-     copyData[16] = (uint8_t)'R';
-     copyData[17] = (uint8_t)'T';
+    copyData[0] = 0x10;
+    copyData[1] = 16;
+    copyData[2] = 0x00;
+    copyData[3] = 4;
+    copyData[4] = (uint8_t)'M';
+    copyData[5] = (uint8_t)'Q';
+    copyData[6] = (uint8_t)'T';
+    copyData[7] = (uint8_t)'T';
+    copyData[8] = 4;
+    copyData[9] = 2;
+    copyData[10] = 0;
+    copyData[11] = 0x3C;
+    copyData[12] = 0;
+    copyData[13] = 4;
+    copyData[14] = (uint8_t)'P';
+    copyData[15] = (uint8_t)'Q';
+    copyData[16] = (uint8_t)'R';
+    copyData[17] = (uint8_t)'T';
 
- /*
+    /*
      copyData[i+1] = 0;
 
      uint8_t j;
@@ -2258,40 +1707,147 @@ void SendTcpPushAck(uint8_t packet[])
        }
 
        copyData[0] = 0;
- */
-     uint16_t tmp16;
+     */
+    uint16_t tmp16;
 
-     uint16_t tcpLen = htons(20 + 18);
-     // 32-bit sum over pseudo-header
-     sum = 0;
+    uint16_t tcpLen = htons(20 + 18);
+    // 32-bit sum over pseudo-header
+    sum = 0;
 
-     etherSumWords(ip->sourceIp, 8);
-     tmp16 = ip->protocol;
-     sum += (tmp16 & 0xff) << 8;
-     etherSumWords(&tcpLen, 2);
-     // add udp header except crc
-     /*
+    etherSumWords(ip->sourceIp, 8);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen, 2);
+    // add udp header except crc
+    /*
      for(i = 0; i < 40; i++)
      {
          tcp->OptionsPad[i] = 0;
      }
      */
 
-     //uint16_t destPort = htons(tcp->destPort);
-     //etherSumWords(&tcp->sourcePort,2);
-     //sum += (destPort & 0xFF) << 8;
- //    etherSumWords(tcp,4);
- //    sum += htons32(tcp->SeqNum);
- //    sum += htons32(tcp->AckNum);
- //    etherSumWords(&tcp->DoRF, 8);
+    //uint16_t destPort = htons(tcp->destPort);
+    //etherSumWords(&tcp->sourcePort,2);
+    //sum += (destPort & 0xFF) << 8;
+    //    etherSumWords(tcp,4);
+    //    sum += htons32(tcp->SeqNum);
+    //    sum += htons32(tcp->AckNum);
+    //    etherSumWords(&tcp->DoRF, 8);
 
-     etherSumWords(tcp,20+18);
-     //etherSumWords(&tcp->data, tcpSize);
+    etherSumWords(tcp,20+18);
+    //etherSumWords(&tcp->data, tcpSize);
 
-     tcp->CheckSum = getEtherChecksum();
+    tcp->CheckSum = getEtherChecksum();
 
-     // send packet with size = ether + tcp hdr + ip header + tcp_size
-     etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 18 );
+    // send packet with size = ether + tcp hdr + ip header + tcp_size
+    etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 18 );
+}
+
+void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    uint8_t i,flags,Offset;
+    uint16_t x = 20;
+    uint16_t a;
+
+    uint8_t *copyData ;
+
+    //populating ether field
+    for(i = 0; i < HW_ADD_LENGTH; i++)
+    {
+        ether->destAddress[i] = ether->destAddress[i];
+    }
+
+    ether->sourceAddress[0] = 2;
+    ether->sourceAddress[1] = 3;
+    ether->sourceAddress[2] = 4;
+    ether->sourceAddress[3] = 5;
+    ether->sourceAddress[4] = 6;
+    ether->sourceAddress[5] = 141;
+
+    ether->frameType = htons(0x0800);
+
+    //populating IP field
+    ip->typeOfService = 0;
+    ip->ttl = 128;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
+    ip->sourceIp[0] = 192;
+        ip->sourceIp[1] = 168;
+        ip->sourceIp[2] = 1;
+        ip->sourceIp[3] = 141;
+
+        ip->destIp[0] = 192;
+        ip->destIp[1] = 168;
+        ip->destIp[2] = 1;
+        ip->destIp[3] = 190;
+
+    //populating TCP
+    tcp->destPort = tcp->destPort;
+    //tcp->sourcePort = htons(23);
+
+    tcp->SeqNum = tcp->SeqNum;
+    tcp->AckNum = tcp->AckNum;
+
+    Offset = x >> 2;
+    flags = 0x18; // for PSH and ACK
+    a = (Offset << 12) + flags;
+    tcp->DoRF = htons(a);
+    tcp->WindowSize = htons(1280);
+    tcp->CheckSum = 0;
+    tcp->UrgentPtr = 0;
+
+    uint8_t Top_Len = stringLen(Topic);
+    uint8_t Data_Len = stringLen(Data);
+
+    ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + Top_Len + Data_Len + 4);
+
+    // 32-bit sum over ip header
+    sum = 0;
+
+
+    etherSumWords(&ip->revSize, 10);
+    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+    ip->headerChecksum = getEtherChecksum();
+
+    copyData = &tcp->data;
+    copyData[0] = 0x31;
+    copyData[1] = Top_Len + Data_Len + 2;
+    copyData[2] = 0x00;
+    copyData[3] = Top_Len;
+    for(i = 4; i < (Top_Len + 4); i++)
+    {
+        copyData[i] = (uint8_t)Topic[i-4];
+    }
+    for(i= (Top_Len+4) ; i < (Data_Len+Top_Len+4) ; i++)
+    {
+            copyData[i] = (uint8_t)Data[i-Top_Len-4];
+    }
+
+    uint16_t tmp16;
+
+       uint16_t tcpLen = htons(20 + Top_Len + Data_Len + 4);
+       // 32-bit sum over pseudo-header
+       sum = 0;
+
+       etherSumWords(ip->sourceIp, 8);
+       tmp16 = ip->protocol;
+       sum += (tmp16 & 0xff) << 8;
+       etherSumWords(&tcpLen, 2);
+
+
+       etherSumWords(tcp,20 + Top_Len + Data_Len + 4);
+       //etherSumWords(&tcp->data, tcpSize);
+
+       tcp->CheckSum = getEtherChecksum();
+
+       // send packet with size = ether + tcp hdr + ip header + tcp_size
+       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + Data_Len + 4);
+
 }
 
 void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
@@ -2307,9 +1863,9 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
 
     uint8_t *copyData;
     for(i = 0; i < HW_ADD_LENGTH; i++)
-     {
-         ether->destAddress[i] = ether->destAddress[i];
-     }
+    {
+        ether->destAddress[i] = ether->destAddress[i];
+    }
 
     ether->sourceAddress[0] = 2;
     ether->sourceAddress[1] = 3;
@@ -2325,7 +1881,7 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     ip->ttl = 55;
     ip->protocol = 6; // TCP
     ip->id = 0;
-/*
+    /*
     for(i = 0; i < IP_ADD_LENGTH; i++)
     {
         ip->destIp[i] = ip->destIp[i];
@@ -2335,7 +1891,7 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     {
         ip->sourceIp[i] = DhcpIpaddress[i];
     }
-*/
+     */
     //populating TCP
     tcp->destPort = tcp->destPort;
     //tcp->sourcePort = htons(23);
@@ -2364,7 +1920,7 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     {
         copyData[i] = tcpData[i];
     }
-/*
+    /*
     copyData[i+1] = 0;
 
     uint8_t j;
@@ -2376,7 +1932,7 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
       }
 
       copyData[0] = 0;
-*/
+     */
     uint16_t tmp16;
 
     uint16_t tcpLen = htons(20 + tcpSize);
@@ -2393,15 +1949,15 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     {
         tcp->OptionsPad[i] = 0;
     }
-    */
+     */
 
     //uint16_t destPort = htons(tcp->destPort);
     //etherSumWords(&tcp->sourcePort,2);
     //sum += (destPort & 0xFF) << 8;
-//    etherSumWords(tcp,4);
-//    sum += htons32(tcp->SeqNum);
-//    sum += htons32(tcp->AckNum);
-//    etherSumWords(&tcp->DoRF, 8);
+    //    etherSumWords(tcp,4);
+    //    sum += htons32(tcp->SeqNum);
+    //    sum += htons32(tcp->AckNum);
+    //    etherSumWords(&tcp->DoRF, 8);
 
     etherSumWords(tcp,20+tcpSize);
     //etherSumWords(&tcp->data, tcpSize);
@@ -2425,7 +1981,7 @@ void SendTcpFin(uint8_t packet[])
 
     for(i = 0; i < HW_ADD_LENGTH; i++)
     {
-         ether->destAddress[i] = ether->destAddress[i];
+        ether->destAddress[i] = ether->destAddress[i];
     }
 
     ether->sourceAddress[0] = 2;
@@ -2438,73 +1994,73 @@ void SendTcpFin(uint8_t packet[])
     ether->frameType = htons(0x0800);
 
     //populating IP field
-        ip->typeOfService = 0;
-        ip->ttl = 128;
-        ip->protocol = 6; // TCP
-        ip->id = 0;
+    ip->typeOfService = 0;
+    ip->ttl = 128;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
 
-        uint8_t temp8;
-        for(i = 0; i < IP_ADD_LENGTH; i++)
-        {
-            temp8 = ip->destIp[i];
-            ip->destIp[i] = ip->sourceIp[i];
-            ip->sourceIp[i] = temp8;
-        }
-/*
+    uint8_t temp8;
+    for(i = 0; i < IP_ADD_LENGTH; i++)
+    {
+        temp8 = ip->destIp[i];
+        ip->destIp[i] = ip->sourceIp[i];
+        ip->sourceIp[i] = temp8;
+    }
+    /*
         for(i = 0; i < IP_ADD_LENGTH; i++)
         {
             ip->sourceIp[i] = DhcpIpaddress[i];
         }
-*/
-        //populating TCP
-        tcp->destPort = htons(tcp->sourcePort);
-        tcp->sourcePort = htons(23);
+     */
+    //populating TCP
+    tcp->destPort = htons(tcp->sourcePort);
+    tcp->sourcePort = htons(23);
 
-        //tcp->SeqNum = tcp->AckNum;
-        //tcp->AckNum = tcp->SeqNum + htons32(1);
-        uint32_t temp32;
+    //tcp->SeqNum = tcp->AckNum;
+    //tcp->AckNum = tcp->SeqNum + htons32(1);
+    uint32_t temp32;
 
-        temp32 = tcp->AckNum;
+    temp32 = tcp->AckNum;
 
-        tcp->AckNum = tcp->SeqNum;
+    tcp->AckNum = tcp->SeqNum;
 
-        tcp->SeqNum = temp32;
-        //tcp->AckNum = 0;
+    tcp->SeqNum = temp32;
+    //tcp->AckNum = 0;
 
 
-        Offset = x >> 2;
-        flags = 0x11; // for FIN and ACK
-        a = (Offset << 12) + flags;
-        tcp->DoRF = htons(a);
-        tcp->WindowSize = htons(1280);
-        tcp->CheckSum = 0;
-        tcp->UrgentPtr = 0;
+    Offset = x >> 2;
+    flags = 0x11; // for FIN and ACK
+    a = (Offset << 12) + flags;
+    tcp->DoRF = htons(a);
+    tcp->WindowSize = htons(1280);
+    tcp->CheckSum = 0;
+    tcp->UrgentPtr = 0;
 
-        ip->length = htons(((ip->revSize & 0xF) * 4) + 20);
+    ip->length = htons(((ip->revSize & 0xF) * 4) + 20);
 
-        //IP checksum
-        sum=0;
-        etherSumWords(&ip->revSize, 10);
-        etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-        ip->headerChecksum = getEtherChecksum();
+    //IP checksum
+    sum=0;
+    etherSumWords(&ip->revSize, 10);
+    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+    ip->headerChecksum = getEtherChecksum();
 
-        //TCP checksum
+    //TCP checksum
 
-        uint16_t tmp16;
+    uint16_t tmp16;
 
-        uint16_t tcpLen = htons(20);
-        sum = 0;
-        etherSumWords(ip->sourceIp, 8);
+    uint16_t tcpLen = htons(20);
+    sum = 0;
+    etherSumWords(ip->sourceIp, 8);
 
-        tmp16 = ip->protocol;
-        sum += (tmp16 & 0xff) << 8;
-        etherSumWords(&tcpLen,2);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen,2);
 
-        etherSumWords(tcp, 20);
-        // etherSumWords(&tcp->data, 0);
-        tcp->CheckSum = getEtherChecksum();
+    etherSumWords(tcp, 20);
+    // etherSumWords(&tcp->data, 0);
+    tcp->CheckSum = getEtherChecksum();
 
-        etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20);
+    etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20);
 
 
 }
@@ -2516,89 +2072,89 @@ void SendTcpLastAck(uint8_t packet[])
     ip->revSize = 0x45;
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
-        uint8_t i,flags,Offset;
-        uint16_t x = 20; // total header length
-        uint16_t a;
+    uint8_t i,flags,Offset;
+    uint16_t x = 20; // total header length
+    uint16_t a;
 
-        // populating ether frame
-        for(i = 0; i < HW_ADD_LENGTH; i++)
-        {
-            ether->destAddress[i] = ether->sourceAddress[i];
-        }
+    // populating ether frame
+    for(i = 0; i < HW_ADD_LENGTH; i++)
+    {
+        ether->destAddress[i] = ether->sourceAddress[i];
+    }
 
-        ether->sourceAddress[0] = 2;
-        ether->sourceAddress[1] = 3;
-        ether->sourceAddress[2] = 4;
-        ether->sourceAddress[3] = 5;
-        ether->sourceAddress[4] = 6;
-        ether->sourceAddress[5] = 141;
+    ether->sourceAddress[0] = 2;
+    ether->sourceAddress[1] = 3;
+    ether->sourceAddress[2] = 4;
+    ether->sourceAddress[3] = 5;
+    ether->sourceAddress[4] = 6;
+    ether->sourceAddress[5] = 141;
 
-        ether->frameType = htons(0x0800);
+    ether->frameType = htons(0x0800);
 
-        //populating IP field
-        ip->typeOfService = 0;
-        ip->ttl = 55;
-        ip->protocol = 6; // TCP
-        ip->id = 0;
-        uint8_t temp8;
-        for(i = 0; i < IP_ADD_LENGTH; i++)
-        {
-            temp8 = ip->destIp[i];
-            ip->destIp[i] = ip->sourceIp[i];
-            ip->sourceIp[i] = temp8;
-        }
-/*
+    //populating IP field
+    ip->typeOfService = 0;
+    ip->ttl = 55;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
+    uint8_t temp8;
+    for(i = 0; i < IP_ADD_LENGTH; i++)
+    {
+        temp8 = ip->destIp[i];
+        ip->destIp[i] = ip->sourceIp[i];
+        ip->sourceIp[i] = temp8;
+    }
+    /*
         for(i = 0; i < IP_ADD_LENGTH; i++)
         {
             ip->sourceIp[i] = DhcpIpaddress[i];
         }
-*/
-        //populating TCP
-        uint32_t temp32;
-        tcp->destPort = ntohs(tcp->sourcePort);
-        tcp->sourcePort = htons(23);
+     */
+    //populating TCP
+    uint32_t temp32;
+    tcp->destPort = ntohs(tcp->sourcePort);
+    tcp->sourcePort = htons(23);
 
 
-        temp32 = tcp->SeqNum;
-        tcp->SeqNum = tcp->AckNum;
-        tcp->AckNum = temp32;
+    temp32 = tcp->SeqNum;
+    tcp->SeqNum = tcp->AckNum;
+    tcp->AckNum = temp32;
 
-        tcp->AckNum = tcp->AckNum + htons32(1);
+    tcp->AckNum = tcp->AckNum + htons32(1);
 
-        Offset = x >> 2;
-        flags = 0x10; // ACK
-        a = (Offset << 12) + flags;
-        tcp->DoRF = htons(a);
-        tcp->WindowSize = htons(1280);
-        tcp->CheckSum = 0;
-        tcp->UrgentPtr = 0;
+    Offset = x >> 2;
+    flags = 0x10; // ACK
+    a = (Offset << 12) + flags;
+    tcp->DoRF = htons(a);
+    tcp->WindowSize = htons(1280);
+    tcp->CheckSum = 0;
+    tcp->UrgentPtr = 0;
 
 
 
-        ip->length = htons(((ip->revSize & 0xF) * 4) + 20);
-        //Ip checksum
-        sum=0;
-        etherSumWords(&ip->revSize, 10);
-        etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
-        ip->headerChecksum = getEtherChecksum();
+    ip->length = htons(((ip->revSize & 0xF) * 4) + 20);
+    //Ip checksum
+    sum=0;
+    etherSumWords(&ip->revSize, 10);
+    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+    ip->headerChecksum = getEtherChecksum();
 
-        //TCP checksum
+    //TCP checksum
 
-        uint16_t tmp16;
+    uint16_t tmp16;
 
-        uint16_t tcpLen = htons(20);
-        sum = 0;
-        etherSumWords(ip->sourceIp, 8);
+    uint16_t tcpLen = htons(20);
+    sum = 0;
+    etherSumWords(ip->sourceIp, 8);
 
-        tmp16 = ip->protocol;
-        sum += (tmp16 & 0xff) << 8;
-        etherSumWords(&tcpLen,2);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen,2);
 
-        etherSumWords(tcp, 20);
-        // etherSumWords(&tcp->data, 0);
-        tcp->CheckSum = getEtherChecksum();
+    etherSumWords(tcp, 20);
+    // etherSumWords(&tcp->data, 0);
+    tcp->CheckSum = getEtherChecksum();
 
-        etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20);
+    etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20);
 }
 
 
@@ -2746,5 +2302,4 @@ void etherGetMacAddress(uint8_t mac[6])
     for (i = 0; i < 6; i++)
         mac[i] = macAddress[i];
 }
-
 
