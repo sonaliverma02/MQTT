@@ -63,6 +63,8 @@ uint8_t state;
 uint8_t tcpstate = TCPCLOSED;
 bool tcp = true;
 bool Pubflag = false;
+bool Subflag = false;
+
 //bool initflag = true;
 //-----------------------------------------------------------------------------
 // Subroutines                
@@ -256,6 +258,7 @@ int main(void)
     uint8_t data[MAX_PACKET_SIZE];
     char* Pub_topic;
     char* Pub_data;
+    char* Sub_topic;
 
     USER_DATA info;
 
@@ -322,6 +325,13 @@ int main(void)
                 Pub_data = getFieldString(&info,3);
                 Pubflag = true;
             }
+
+            if(isCommand(&info,"subscribe",2))
+            {
+                Sub_topic = getFieldString(&info,2);
+                Subflag = true;
+            }
+
             if(isCommand(&info,"ifconfig",1))
             {
                 displayConnectionInfo();
@@ -336,8 +346,11 @@ int main(void)
         // Packet processing
         if(tcpstate == TCPCLOSED)
         {
-            SendTcpSynmessage(data);
-            tcpstate = TCPLISTEN;
+            if(Pubflag || Subflag)
+            {
+                SendTcpSynmessage(data);
+                tcpstate = TCPLISTEN;
+            }
         }
        // while(1);
         if (etherIsDataAvailable())
@@ -417,13 +430,27 @@ int main(void)
                  {
                      if(Pubflag)//if client is sending publish
                      {
+                         SendTcpAck1(data);
+                         _delay_cycles(6);
                          SendMqttPublishClient(data,Pub_topic,Pub_data);
+                         Pubflag = false;
+                         tcpstate = TCPCLOSED;
+                     }
+
+                     if(Subflag)// if client is sending subscribe
+                     {
+                         SendTcpAck1(data);
+                         _delay_cycles(6);
+                         SendMqttSubscribeClient(data,Sub_topic);
+                         Subflag = false;
+                         tcpstate = TCPCLOSED;
                      }
 
                      if(IsMqttpublishServer(data))// if server is sending publish
                      {
 
                      }
+
                  }
 
 

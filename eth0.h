@@ -140,12 +140,14 @@ void etherGetMqttBrkIpAddress(uint8_t ip[4]);
 void SendTcpSynmessage(uint8_t packet[]);
 void SendTcpSynAckmessage(uint8_t packet[]);
 void SendTcpAck(uint8_t packet[]);
+void SendTcpAck1(uint8_t packet[]);
 void SendTcpPushAck(uint8_t packet[]);
 void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize);
 void SendTcpFin(uint8_t packet[]);
 void SendTcpLastAck(uint8_t packet[]);
 
 void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data);
+void SendMqttSubscribeClient(uint8_t packet[], char* Topic);
 
 uint16_t htons(uint16_t value);
 #define ntohs htons
