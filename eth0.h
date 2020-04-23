@@ -80,6 +80,13 @@
 #define TCPFINWAIT2        29
 #define TCPTIMEWAIT        30
 
+struct _SubTopicFrame
+{
+    char SubTopicArr[10][20];
+    uint8_t Topic_names;
+    uint8_t times[10];
+
+}SubTopicFrame;
 
 //-----------------------------------------------------------------------------
 // Subroutines

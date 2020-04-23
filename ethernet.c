@@ -53,17 +53,12 @@
 #define GREEN_LED PORTF,3
 #define PUSH_BUTTON PORTF,4
 
-
-extern uint32_t DhcpOffLTime;
-extern uint8_t DhcpIpaddress[4];
-extern uint8_t ipSubnetMask[4];
-extern uint8_t DhcpRoutOffBuff[4];
-extern uint8_t DhcpipGwAddress[4];
 uint8_t state;
 uint8_t tcpstate = TCPCLOSED;
 bool tcp = true;
 bool Pubflag = false;
 bool Subflag = false;
+
 
 //bool initflag = true;
 //-----------------------------------------------------------------------------
@@ -129,35 +124,6 @@ void displayConnectionInfo()
             putcUart0('.');
     }
     putsUart0("\n\r");
-    /*
-    if (etherIsDhcpEnabled())
-        putsUart0(" (dhcp)");
-    else
-        putsUart0(" (static)");
-    putsUart0("\n\r");
-    etherGetIpSubnetMask(ip);
-    putsUart0("SN: ");
-    for (i = 0; i < 4; i++)
-    {
-        //sprintf(str, "%u", ip[i]);
-        str1 = itostring(ip[i]);
-        putsUart0(str1);
-        if (i < 4-1)
-            putcUart0('.');
-    }
-    putsUart0("\n\r");
-    etherGetIpGatewayAddress(ip);
-    putsUart0("GW: ");
-    for (i = 0; i < 4; i++)
-    {
-        //sprintf(str, "%u", ip[i]);
-        str1 = itostring(ip[i]);
-        putsUart0(str1);
-        if (i < 4-1)
-            putcUart0('.');
-    }
-    putsUart0("\n\r");
-    */
     etherGetDNSAddress(ip);
     putsUart0("DNS: ");
     for (i = 0; i < 4; i++)
@@ -197,53 +163,7 @@ uint32_t readEeprom(uint16_t add)
     EEPROM_EEOFFSET_R = add & 0xF;
     return EEPROM_EERDWR_R;
 }
-/*
-void cbdiscover()
-{
-    state = DHCPDISCOVER;
-}
 
-void cb_testIpTimer()
-{
-    state = BOUND;
-    putsUart0("bounded\r\n");
-    etherSetIpAddress(DhcpIpaddress[0], DhcpIpaddress[1], DhcpIpaddress[2], DhcpIpaddress[3]);
-    etherSetIpSubnetMask(ipSubnetMask[0],ipSubnetMask[1],ipSubnetMask[2],ipSubnetMask[3]);
-    etherSetIpGatewayAddress(DhcpRoutOffBuff[0],DhcpRoutOffBuff[1],DhcpRoutOffBuff[2],DhcpRoutOffBuff[3]);
-    tcp = true;
-
-}
-
-void cb_request()
-{
-
-    //SendDhcpRequest(data,type,ipadd);
-    //putsUart0("request\r\n");
-
-}
-
-void cb_renew()
-{
-
-    state = DHCPREQUEST;
-    //renewrequest = true;
-    startPeriodicTimer((_callback)cb_request,1);
-}
-
-void cb_rebind()
-{
-    stopTimer((_callback)cb_request);
-    putsUart0("rebinding\r\n");
-    state = INIT;
-    startPeriodicTimer((_callback)cbdiscover, 15);
-
-}
-
-void cb_init()
-{
-    state = INIT;
-}
-*/
 //-----------------------------------------------------------------------------
 // Main
 //-----------------------------------------------------------------------------
@@ -259,6 +179,7 @@ int main(void)
     char* Pub_topic;
     char* Pub_data;
     char* Sub_topic;
+    SubTopicFrame.Topic_names = 0;
 
     USER_DATA info;
 

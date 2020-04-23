@@ -1839,7 +1839,6 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     uint16_t a;
 
     uint8_t *copyData ;
-    char SubTopicArr[10][20];
 
     //populating ether field
     for(i = 0; i < HW_ADD_LENGTH; i++)
@@ -1888,12 +1887,40 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     tcp->UrgentPtr = 0;
 
     uint8_t Top_Len = stringLen(Topic);
-    uint8_t j = 1, ii = 0;
+    uint8_t j = 1;
 
-    stringCopy(SubTopicArr[ii], Topic);
-    if(SubTopicArr[ii-1] != NULL || ii == 0)
+    bool Idflag = false;
+    copyData = &tcp->data;
+
+    if(SubTopicFrame.Topic_names == 0)
     {
-        ii++;
+        stringCopy(SubTopicFrame.SubTopicArr[SubTopicFrame.Topic_names], Topic);
+        SubTopicFrame.times[SubTopicFrame.Topic_names] = 1;
+        j = 1;
+        SubTopicFrame.Topic_names++;
+    }else
+    {
+        Idflag = false;
+        for(i = 0 ; i < SubTopicFrame.Topic_names; i++)
+        {
+            if(strngcomp(SubTopicFrame.SubTopicArr[i],Topic))
+            {
+                Idflag = true;
+                SubTopicFrame.times[i]++;
+                j = SubTopicFrame.times[i];
+                break;
+
+            }
+        }
+
+            if(Idflag == false)
+            {
+                stringCopy(SubTopicFrame.SubTopicArr[SubTopicFrame.Topic_names], Topic);
+                SubTopicFrame.times[SubTopicFrame.Topic_names] = 1;
+                j = 1;
+                SubTopicFrame.Topic_names++;
+            }
+
     }
 
 
@@ -1908,24 +1935,12 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     ip->headerChecksum = getEtherChecksum();
 
     //MQTT begins
-    copyData = &tcp->data;
+
 
     copyData[0] = 0x82;
     copyData[1] = Top_Len + 2 + 2 + 1;
     copyData[2] = 0;
-    while(ii) // yet to be corrected
-    {
-        if(strngcomp(SubTopicArr[ii-1], Topic))
-        {
-            copyData[3] = j++;
-            break;
-        }else
-        {
-            j = 1;
-            copyData[3] = j;
-        }
-        ii--;
-    }
+    copyData[3] = j;
     copyData[4] = 0;
     copyData[5] = Top_Len;
     for(i = 6; i < (Top_Len + 6); i++)
