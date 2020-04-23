@@ -55,7 +55,7 @@
 
 uint8_t state;
 uint8_t tcpstate = TCPCLOSED;
-bool tcp = true;
+
 bool Pubflag = false;
 bool Subflag = false;
 
@@ -323,9 +323,6 @@ int main(void)
                 }
             }
 
-         if(tcp)
-         {
-
              if(tcpstate == TCPLISTEN)
              {
                  if(IsTcpSynAck(data))
@@ -354,8 +351,8 @@ int main(void)
                          SendTcpAck1(data);
                          _delay_cycles(6);
                          SendMqttPublishClient(data,Pub_topic,Pub_data);
-                         Pubflag = false;
-                         tcpstate = TCPCLOSED;
+
+                         //_delay_cycles(6);
                      }
 
                      if(Subflag)// if client is sending subscribe
@@ -367,15 +364,25 @@ int main(void)
                          tcpstate = TCPCLOSED;
                      }
 
-                     if(IsMqttpublishServer(data))// if server is sending publish
-                     {
-
-                     }
-
                  }
 
+                 if(IsPubAck(data)) // it comes when QoS level of publish is 1
+                 {
+                     Pubflag = false;
+                     tcpstate = TCPCLOSED;
+                 }
+
+                 if(IsPubRec(data)) // it comes when QoS level of publish is 2
+                 {
+                    // SendTcpAck1(data);
+                     //_delay_cycles(6);
+                     SendMqttPublishRel(data);
+                     Pubflag = false;
+                     tcpstate = TCPCLOSED;
+                 }
 
              }
+
              /*
              if(tcpstate == TCPFINWAIT1)
              {
@@ -411,8 +418,6 @@ int main(void)
                  tcpstate = TCPCLOSED;
              }
              */
-
-         }
 
         }
 

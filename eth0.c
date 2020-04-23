@@ -1118,6 +1118,62 @@ bool IsMqttpublishServer(uint8_t packet[])
     return ok;
 }
 
+bool IsPubAck(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    copydata[0] = (copydata[0] & 0xF0); // mask QoS part and retain command type
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0x40); // compare with publish Ack command
+    }
+
+    return ok;
+}
+
+bool IsPubRec(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    copydata[0] = (copydata[0] & 0xF0); // mask QoS part and retain command type
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0x50); // compare with publish Release command
+        PayloadSize = htons(ip->length) - 20 - 20;
+    }
+
+    return ok;
+}
 
 // Gets pointer to UDP payload of frame
 uint8_t* etherGetUdpData(uint8_t packet[])
@@ -1704,7 +1760,7 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
 
     //MQTT begains
     copyData = &tcp->data;
-    copyData[0] = 0x33; // for publish
+    copyData[0] = 0x35; // for publish
     copyData[1] = Top_Len + Data_Len + 2;
     copyData[2] = 0x00;
     copyData[3] = Top_Len;
@@ -1937,7 +1993,7 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     //MQTT begins
 
 
-    copyData[0] = 0x82;
+    copyData[0] = 0x83;
     copyData[1] = Top_Len + 2 + 2 + 1;
     copyData[2] = 0;
     copyData[3] = j;
@@ -1969,6 +2025,113 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
 
        // send packet with size = ether + tcp hdr + ip header + tcp_size
        etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + 2 + 2 + 2 + 1);
+
+}
+
+void SendMqttPublishRel(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    uint8_t i,flags,Offset;
+    uint16_t x = 20;
+    uint16_t a;
+
+    uint8_t *copyData ;
+
+    //populating ether field
+    for(i = 0; i < HW_ADD_LENGTH; i++)
+    {
+        ether->destAddress[i] = ether->destAddress[i];
+    }
+
+    ether->sourceAddress[0] = 2;
+    ether->sourceAddress[1] = 3;
+    ether->sourceAddress[2] = 4;
+    ether->sourceAddress[3] = 5;
+    ether->sourceAddress[4] = 6;
+    ether->sourceAddress[5] = 141;
+
+    ether->frameType = htons(0x0800);
+
+    //populating IP field
+    ip->typeOfService = 0;
+    ip->ttl = 128;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
+
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
+
+    //populating TCP
+    uint32_t temp32;
+    uint16_t temp16;
+
+    temp16 = tcp->destPort;
+    tcp->destPort = tcp->sourcePort;
+    tcp->sourcePort = temp16;
+
+
+    temp32 = tcp->AckNum;
+    tcp->AckNum = tcp->SeqNum;
+    tcp->SeqNum = temp32;
+
+    tcp->AckNum = tcp->AckNum + htons32(PayloadSize);
+
+    Offset = x >> 2;
+    flags = 0x18; // for PSH and ACK
+    a = (Offset << 12) + flags;
+    tcp->DoRF = htons(a);
+    tcp->WindowSize = htons(1280);
+    tcp->CheckSum = 0;
+    tcp->UrgentPtr = 0;
+
+    copyData = &tcp->data;
+
+    ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 4);
+
+    // 32-bit sum over ip header
+    sum = 0;
+
+
+    etherSumWords(&ip->revSize, 10);
+    etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+    ip->headerChecksum = getEtherChecksum();
+
+    //MQTT begins
+
+
+    copyData[0] = 0x60;
+    copyData[1] = 2;
+    copyData[2] = copyData[2];
+    copyData[3] = copyData[3];
+    uint16_t tmp16;
+
+       uint16_t tcpLen = htons(20 + 4);
+       // 32-bit sum over pseudo-header
+       sum = 0;
+
+       etherSumWords(ip->sourceIp, 8);
+       tmp16 = ip->protocol;
+       sum += (tmp16 & 0xff) << 8;
+       etherSumWords(&tcpLen, 2);
+
+
+       etherSumWords(tcp,20 + 4);
+       //etherSumWords(&tcp->data, tcpSize);
+
+       tcp->CheckSum = getEtherChecksum();
+
+       // send packet with size = ether + tcp hdr + ip header + tcp_size
+       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 4);
 
 }
 
