@@ -1090,6 +1090,9 @@ bool IsMqttConnectAck(uint8_t packet[])
     return ok;
 }
 
+
+
+
 bool IsMqttpublishServer(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1248,7 +1251,7 @@ static uint8_t stringLen(char* str)
     {
         count++;
     }
-     return count;
+    return count;
 }
 
 static void stringCopy(char str1[], char str2[])
@@ -1397,7 +1400,7 @@ void SendTcpSynmessage(uint8_t packet[])
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 4);
 }
 
-/*
+
 void SendTcpSynAckmessage(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1489,7 +1492,7 @@ void SendTcpSynAckmessage(uint8_t packet[])
 
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 4);
 }
- */
+
 void SendTcpAck(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1686,6 +1689,8 @@ void SendTcpPushAck(uint8_t packet[])
     etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 18 );
 }
 
+
+
 void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1748,7 +1753,44 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
     uint8_t Top_Len = stringLen(Topic);
     uint8_t Data_Len = stringLen(Data);
 
-    ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + Top_Len + Data_Len + 4);
+    //MQTT begains
+    copyData = &tcp->data;
+    copyData[0] = 0x31; // for publish
+    uint8_t Mask = (copyData[0] & 0x0F);
+
+    copyData[1] = Top_Len + Data_Len + 2;
+    copyData[2] = 0x00;
+    copyData[3] = Top_Len;
+    for(i = 4; i < (Top_Len + 4); i++)
+    {
+        copyData[i] = (uint8_t)Topic[i-4];
+    }
+
+    if( (Mask == 0x05) || (Mask == 0x03) || (Mask == 0x04) || (Mask == 0x02))
+    {
+        copyData[i] = 0x45;
+        copyData[++i] = 0x46;
+        for(i = (Top_Len+4+2) ; i < (Data_Len+Top_Len+4+2) ; i++)
+        {
+            copyData[i] = (uint8_t)Data[i-Top_Len-4-2];
+        }
+    }
+    else
+    {
+        for(i = (Top_Len+4) ; i < (Data_Len+Top_Len+4) ; i++)
+            {
+                copyData[i] = (uint8_t)Data[i-Top_Len-4];
+            }
+    }
+
+    //IP checksum
+    if( (Mask == 0x05) || (Mask == 0x03) || (Mask == 0x04) || (Mask == 0x02))
+    {
+        ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + Top_Len + Data_Len + 4 + 2);
+    }else
+    {
+        ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + Top_Len + Data_Len + 4);
+    }
 
     // 32-bit sum over ip header
     sum = 0;
@@ -1758,40 +1800,44 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
     etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
     ip->headerChecksum = getEtherChecksum();
 
-    //MQTT begains
-    copyData = &tcp->data;
-    copyData[0] = 0x35; // for publish
-    copyData[1] = Top_Len + Data_Len + 2;
-    copyData[2] = 0x00;
-    copyData[3] = Top_Len;
-    for(i = 4; i < (Top_Len + 4); i++)
+    //TCP checksum
+    uint16_t tmp16, tcpLen;
+
+    if( (Mask == 0x05) || (Mask == 0x03) || (Mask == 0x04) || (Mask == 0x02))
     {
-        copyData[i] = (uint8_t)Topic[i-4];
-    }
-    for(i = (Top_Len+4) ; i < (Data_Len+Top_Len+4) ; i++)
+         tcpLen = htons(20 + Top_Len + Data_Len + 4 + 2);
+    }else
     {
-            copyData[i] = (uint8_t)Data[i-Top_Len-4];
+         tcpLen = htons(20 + Top_Len + Data_Len + 4);
     }
+    // 32-bit sum over pseudo-header
+    sum = 0;
 
-    uint16_t tmp16;
+    etherSumWords(ip->sourceIp, 8);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen, 2);
 
-       uint16_t tcpLen = htons(20 + Top_Len + Data_Len + 4);
-       // 32-bit sum over pseudo-header
-       sum = 0;
+    if( (Mask == 0x05) || (Mask == 0x03) || (Mask == 0x04) || (Mask == 0x02))
+    {
+        etherSumWords(tcp,20 + Top_Len + Data_Len + 4 + 2);
+    }else
+    {
+        etherSumWords(tcp,20 + Top_Len + Data_Len + 4);
+    }
+    //etherSumWords(&tcp->data, tcpSize);
 
-       etherSumWords(ip->sourceIp, 8);
-       tmp16 = ip->protocol;
-       sum += (tmp16 & 0xff) << 8;
-       etherSumWords(&tcpLen, 2);
+    tcp->CheckSum = getEtherChecksum();
 
-
-       etherSumWords(tcp,20 + Top_Len + Data_Len + 4);
-       //etherSumWords(&tcp->data, tcpSize);
-
-       tcp->CheckSum = getEtherChecksum();
-
-       // send packet with size = ether + tcp hdr + ip header + tcp_size
-       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + Data_Len + 4);
+    if( (Mask == 0x05) || (Mask == 0x03) || (Mask == 0x04) || (Mask == 0x02))
+    {
+    // send packet with size = ether + tcp hdr + ip header + tcp_size
+        etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + Data_Len + 4 + 2);
+    }else
+    {
+        // send packet with size = ether + tcp hdr + ip header + tcp_size
+        etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + Data_Len + 4);
+    }
 
 }
 
@@ -1969,13 +2015,13 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
             }
         }
 
-            if(Idflag == false)
-            {
-                stringCopy(SubTopicFrame.SubTopicArr[SubTopicFrame.Topic_names], Topic);
-                SubTopicFrame.times[SubTopicFrame.Topic_names] = 1;
-                j = 1;
-                SubTopicFrame.Topic_names++;
-            }
+        if(Idflag == false)
+        {
+            stringCopy(SubTopicFrame.SubTopicArr[SubTopicFrame.Topic_names], Topic);
+            SubTopicFrame.times[SubTopicFrame.Topic_names] = 1;
+            j = 1;
+            SubTopicFrame.Topic_names++;
+        }
 
     }
 
@@ -1993,7 +2039,7 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     //MQTT begins
 
 
-    copyData[0] = 0x83;
+    copyData[0] = 0x82;
     copyData[1] = Top_Len + 2 + 2 + 1;
     copyData[2] = 0;
     copyData[3] = j;
@@ -2008,23 +2054,23 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
 
     uint16_t tmp16;
 
-       uint16_t tcpLen = htons(20 + Top_Len + 2 + 2 + 2 + 1);
-       // 32-bit sum over pseudo-header
-       sum = 0;
+    uint16_t tcpLen = htons(20 + Top_Len + 2 + 2 + 2 + 1);
+    // 32-bit sum over pseudo-header
+    sum = 0;
 
-       etherSumWords(ip->sourceIp, 8);
-       tmp16 = ip->protocol;
-       sum += (tmp16 & 0xff) << 8;
-       etherSumWords(&tcpLen, 2);
+    etherSumWords(ip->sourceIp, 8);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen, 2);
 
 
-       etherSumWords(tcp,20 + Top_Len + 2 + 2 + 2 + 1);
-       //etherSumWords(&tcp->data, tcpSize);
+    etherSumWords(tcp,20 + Top_Len + 2 + 2 + 2 + 1);
+    //etherSumWords(&tcp->data, tcpSize);
 
-       tcp->CheckSum = getEtherChecksum();
+    tcp->CheckSum = getEtherChecksum();
 
-       // send packet with size = ether + tcp hdr + ip header + tcp_size
-       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + 2 + 2 + 2 + 1);
+    // send packet with size = ether + tcp hdr + ip header + tcp_size
+    etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + 2 + 2 + 2 + 1);
 
 }
 
@@ -2035,17 +2081,19 @@ void SendMqttPublishRel(uint8_t packet[])
     ip->revSize = 0x45;
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
-    uint8_t i,flags,Offset;
+    uint8_t flags,Offset;
     uint16_t x = 20;
     uint16_t a;
 
     uint8_t *copyData ;
 
     //populating ether field
-    for(i = 0; i < HW_ADD_LENGTH; i++)
-    {
-        ether->destAddress[i] = ether->destAddress[i];
-    }
+    ether->destAddress[0] = 0x8c;
+    ether->destAddress[1] = 0x16;
+    ether->destAddress[2] = 0x45;
+    ether->destAddress[3] = 0xd7;
+    ether->destAddress[4] = 0x51;
+    ether->destAddress[5] = 0x2f;
 
     ether->sourceAddress[0] = 2;
     ether->sourceAddress[1] = 3;
@@ -2071,6 +2119,7 @@ void SendMqttPublishRel(uint8_t packet[])
     ip->destIp[2] = 1;
     ip->destIp[3] = 190;
 
+    /*
     //populating TCP
     uint32_t temp32;
     uint16_t temp16;
@@ -2085,6 +2134,7 @@ void SendMqttPublishRel(uint8_t packet[])
     tcp->SeqNum = temp32;
 
     tcp->AckNum = tcp->AckNum + htons32(PayloadSize);
+    */
 
     Offset = x >> 2;
     flags = 0x18; // for PSH and ACK
@@ -2113,25 +2163,26 @@ void SendMqttPublishRel(uint8_t packet[])
     copyData[1] = 2;
     copyData[2] = copyData[2];
     copyData[3] = copyData[3];
+
     uint16_t tmp16;
 
-       uint16_t tcpLen = htons(20 + 4);
-       // 32-bit sum over pseudo-header
-       sum = 0;
+    uint16_t tcpLen = htons(20 + 4);
+    // 32-bit sum over pseudo-header
+    sum = 0;
 
-       etherSumWords(ip->sourceIp, 8);
-       tmp16 = ip->protocol;
-       sum += (tmp16 & 0xff) << 8;
-       etherSumWords(&tcpLen, 2);
+    etherSumWords(ip->sourceIp, 8);
+    tmp16 = ip->protocol;
+    sum += (tmp16 & 0xff) << 8;
+    etherSumWords(&tcpLen, 2);
 
 
-       etherSumWords(tcp,20 + 4);
-       //etherSumWords(&tcp->data, tcpSize);
+    etherSumWords(tcp,20 + 4);
+    //etherSumWords(&tcp->data, tcpSize);
 
-       tcp->CheckSum = getEtherChecksum();
+    tcp->CheckSum = getEtherChecksum();
 
-       // send packet with size = ether + tcp hdr + ip header + tcp_size
-       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 4);
+    // send packet with size = ether + tcp hdr + ip header + tcp_size
+    etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 4);
 
 }
 
