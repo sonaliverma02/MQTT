@@ -42,30 +42,6 @@
 #define LOBYTE(x) ((x) & 0xFF)
 #define HIBYTE(x) (((x) >> 8) & 0xFF)
 
-/*
- * DHCP parameters
- */
-
-#define DHCPDISCOVER       1
-#define DHCPOFFER          2
-#define DHCPREQUEST        3
-#define DHCPDECLINCE       4
-#define DHCPACK            5
-#define DHCPNACK           6
-#define DHCPRELEASE        7
-#define DHCPINFORM         8
-#define TEST_IP            9
-#define BOUND              10
-#define WAITING            11
-#define INIT               12
-
-
-#define REQUESTING         20
-
-//DHCP OP fields
-
-#define BOOTREQUEST        1
-#define BOOTREPLY          2
 
 //TCP
 
@@ -130,6 +106,11 @@ bool IsTcpFin(uint8_t packet[]);
 bool ISTcpFinAck(uint8_t packet[]);
 bool IsMqttConnectAck(uint8_t packet[]);
 bool IsMqttpublishServer(uint8_t packet[]);
+bool IsPubAck(uint8_t packet[]);
+bool IsPubRec(uint8_t packet[]);
+bool IsSubAck(uint8_t packet[]);
+bool IsMqttPingResponse(uint8_t packet[]);
+bool IsMqttPublishServer(uint8_t packet[]);
 
 void etherSetIpAddress(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
 void etherGetIpAddress(uint8_t ip[4]);
@@ -155,6 +136,9 @@ void SendTcpLastAck(uint8_t packet[]);
 
 void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data);
 void SendMqttSubscribeClient(uint8_t packet[], char* Topic);
+void SendMqttPublishRel(uint8_t packet[]);
+void SendMqttPingRequest(uint8_t packet[]);
+char* CollectPubData(uint8_t packet[]);
 
 uint16_t htons(uint16_t value);
 #define ntohs htons
