@@ -43,7 +43,7 @@
 #include "spi0.h"
 #include "uart0.h"
 #include "wait.h"
-//#include "Timer.h"
+#include "Timer.h"
 #include "mosquitto.h"
 #include "mosquitto_plugin.h"
 
@@ -58,6 +58,7 @@ uint8_t tcpstate = TCPCLOSED;
 
 bool Pubflag = false;
 bool Subflag = false;
+bool UnSubflag  = false;
 extern bool AvdSYN;
 bool SverPubFlag = false;
 
@@ -90,7 +91,7 @@ void initHw()
 void toggleFlag()
 {
     SverPubFlag = true;
-    TIMER4_ICR_R = TIMER_ICR_TATOCINT;
+    //TIMER4_ICR_R = TIMER_ICR_TATOCINT;
 }
 
 void displayConnectionInfo()
@@ -189,8 +190,10 @@ int main(void)
     char* Pub_topic;
     char* Pub_data;
     char* Sub_topic;
+    char* UnSub_topic;
     SubTopicFrame.Topic_names = 0;
     char* Pub_server_data;
+    uint8_t Switchcase = 0;
 
     USER_DATA info;
 
@@ -266,6 +269,13 @@ int main(void)
                 Subflag = true;
             }
 
+            if(isCommand(&info,"unsubscribe",2))
+            {
+                UnSub_topic = getFieldString(&info,2);
+                UnSubflag = true;
+                tcpstate = TCPCLOSED;
+            }
+
             if(isCommand(&info,"ifconfig",1))
             {
                 displayConnectionInfo();
@@ -280,7 +290,7 @@ int main(void)
         // Packet processing
         if(tcpstate == TCPCLOSED)
         {
-            if(Pubflag || Subflag)
+            if(Pubflag || Subflag || UnSubflag)
             {
                 SendTcpSynmessage(data);
                 tcpstate = TCPLISTEN;
@@ -365,7 +375,7 @@ int main(void)
                          SendTcpAck1(data);
                          _delay_cycles(6);
                          SendMqttPublishClient(data,Pub_topic,Pub_data);
-
+                         Switchcase = PUB;
                          //_delay_cycles(6);
                      }
 
@@ -374,38 +384,77 @@ int main(void)
                          SendTcpAck1(data);
                          _delay_cycles(6);
                          SendMqttSubscribeClient(data,Sub_topic);
+                         Switchcase = SUB;
                          //Subflag = false;
                          //tcpstate = TCPCLOSED;
                      }
 
-                 }
-
-                 if(AvdSYN)
-                 {
-                     if(IsTcpAck(data))//IT comes when QoS level of publish is 0
+                     if(UnSubflag)
                      {
-                         Subflag = false;
-                         tcpstate = TCPCLOSED;
-                         AvdSYN = true;
+                         SendTcpAck1(data);
+                         _delay_cycles(6);
+                         SendMqttUnSubscribeClient(data,UnSub_topic);
+                         UnSubflag = false;
                      }
+
                  }
 
-                 if(IsPubAck(data)) // it comes when QoS level of publish is 1
+
+                 switch(Switchcase)
                  {
-                     Pubflag = false;
-                     tcpstate = TCPCLOSED;
-                     SendMqttPingRequest(data);
-                     waitMicrosecond(1000000);
+                 case PUB:
+                     if(AvdSYN)
+                     {
+                         if(IsTcpAck(data))//IT comes when QoS level of publish is 0
+                         {
+                             Subflag = false;
+                             tcpstate = TCPCLOSED;
+                             AvdSYN = true;
+
+                             Switchcase = 0;
+                         }
+                     }
+
+                     if(IsPubAck(data)) // it comes when QoS level of publish is 1
+                     {
+                         Pubflag = false;
+                         tcpstate = TCPCLOSED;
+                         SendMqttPingRequest(data);
+                         waitMicrosecond(1000000);
+
+                         Switchcase = 0;
+                     }
+
+                     if(IsPubRec(data)) // it comes when QoS level of publish is 2
+                     {
+                         // SendTcpAck1(data);
+                         //_delay_cycles(6);
+                         SendMqttPublishRel(data);
+                         Pubflag = false;
+                         tcpstate = TCPCLOSED;
+
+                         Switchcase = 0;
+                     }
+
+                     break;
+
+                 case SUB:
+                     if(IsSubAck(data))
+                     {
+                         //SendTcpAck1(data);
+                         //_delay_cycles(6);
+                         SverPubFlag = true;
+                         Switchcase = 0;
+                         Subflag = false;
+                     }
+                     break;
+
+                 default:
+
+                     break;
+
                  }
 
-                 if(IsPubRec(data)) // it comes when QoS level of publish is 2
-                 {
-                    // SendTcpAck1(data);
-                     //_delay_cycles(6);
-                     SendMqttPublishRel(data);
-                     Pubflag = false;
-                     tcpstate = TCPCLOSED;
-                 }
 
                  if(IsMqttPingResponse(data))
                  {
@@ -415,8 +464,9 @@ int main(void)
                  if(IsMqttpublishServer(data))
                  {
 
-                     NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
-                     SverPubFlag = false;
+                    // NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
+                     stopTimer((_callback)toggleFlag);
+                     //SverPubFlag = false;
 
                      Pub_server_data = CollectPubData(data);
                      putsUart0(Pub_server_data);
@@ -425,29 +475,28 @@ int main(void)
 
                  }
 
-                 if(IsSubAck(data))
-                 {
-                     SendTcpAck1(data);
-                     _delay_cycles(6);
-                      SverPubFlag = true;
-                 }
 
                  if(SverPubFlag)
                  {
 
-                     SendMqttPingRequest(data);
+                     if(SverPubFlag)
+                     {
+                         SendMqttPingRequest(data);
+                     }
 
-                     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
-                     _delay_cycles(3);
-                     // Configure Timer 4 for 1 sec tick
-                     TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
-                     TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
-                     TIMER4_TAMR_R = TIMER_TAMR_TAMR_PERIOD;          // configure for periodic mode (count down)
-                     TIMER4_TAILR_R = 40000000*3;                       // set load value (1 Hz rate)
-                     TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
-                     TIMER4_IMR_R |= TIMER_IMR_TATOIM;                // turn-on interrupt
+                     startPeriodicTimer((_callback)toggleFlag,2);
 
-                     NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
+//                     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
+//                     _delay_cycles(3);
+//                     // Configure Timer 4 for 1 sec tick
+//                     TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
+//                     TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
+//                     TIMER4_TAMR_R = TIMER_TAMR_TAMR_PERIOD;          // configure for periodic mode (count down)
+//                     TIMER4_TAILR_R = 40000000*3;                       // set load value (1 Hz rate)
+//                     TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
+//                     TIMER4_IMR_R |= TIMER_IMR_TATOIM;                // turn-on interrupt
+//
+//                     NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
                  }
 
              }

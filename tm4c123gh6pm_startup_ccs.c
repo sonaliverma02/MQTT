@@ -43,6 +43,7 @@ static void IntDefaultHandler(void);
 //*****************************************************************************
 extern void _c_int00(void);
 extern void tickIsr(void);
+//extern void toggleFlag(void);
 
 //*****************************************************************************
 //
