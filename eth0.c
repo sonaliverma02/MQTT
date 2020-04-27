@@ -1085,7 +1085,7 @@ bool IsMqttpublishServer(uint8_t packet[])
     //tcp->sourcePort = htons(tcp->sourcePort);
 
     uint8_t Mask = (copydata[0] & 0xF0); // mask QoS part and retain command type
-
+    PayloadSize = 0;
     if(ok)
     {
         ok = (Mask == 0x30); // compare with publish command
@@ -1177,6 +1177,34 @@ bool IsSubAck(uint8_t packet[])
     }
 
     return ok;
+}
+
+bool IsUnsubAck(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0xB0); // compare with Subscribe Ack
+       // PayloadSize = htons(ip->length) - 20 - 20;
+    }
+
+    return ok;
+
 }
 
 bool IsMqttPingResponse(uint8_t packet[])
@@ -1787,7 +1815,7 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
 
     //MQTT begains
     copyData = &tcp->data;
-    copyData[0] = 0x33; // for publish
+    copyData[0] = 0x31; // for publish
     if(copyData[0] == 0x35 || copyData[0] == 0x33 || copyData[0] == 0x34 || copyData[0] == 0x32)
     {
         AvdSYN = false;
@@ -2419,7 +2447,7 @@ void SendMqttPingRequest(uint8_t packet[])
     uint16_t temp16;
 
     temp16 = tcp->destPort;
-    tcp->destPort = htons(tcp->sourcePort);
+    tcp->destPort = tcp->sourcePort;
     tcp->sourcePort = temp16;
 
 
@@ -2430,7 +2458,7 @@ void SendMqttPingRequest(uint8_t packet[])
     tcp->AckNum = tcp->AckNum + htons32(PayloadSize);
 
     Offset = x >> 2;
-    flags = 0x10; // ACK
+    flags = 0x18; // PUSH ACK
     a = (Offset << 12) + flags;
     tcp->DoRF = htons(a);
     tcp->WindowSize = htons(1280);

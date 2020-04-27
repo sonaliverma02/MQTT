@@ -43,7 +43,7 @@
 #include "spi0.h"
 #include "uart0.h"
 #include "wait.h"
-#include "Timer.h"
+//#include "Timer.h"
 #include "mosquitto.h"
 #include "mosquitto_plugin.h"
 
@@ -91,7 +91,7 @@ void initHw()
 void toggleFlag()
 {
     SverPubFlag = true;
-    //TIMER4_ICR_R = TIMER_ICR_TATOCINT;
+    TIMER4_ICR_R = TIMER_ICR_TATOCINT;
 }
 
 void displayConnectionInfo()
@@ -297,6 +297,27 @@ int main(void)
             }
         }
 
+        if(SverPubFlag)
+        {
+
+            SendMqttPingRequest(data);
+
+            //startPeriodicTimer((_callback)toggleFlag,2);
+            Switchcase = PING;
+
+            SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
+            _delay_cycles(3);
+            // Configure Timer 4 for 1 sec tick
+            TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
+            TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
+            TIMER4_TAMR_R = TIMER_TAMR_TAMR_PERIOD;          // configure for periodic mode (count down)
+            TIMER4_TAILR_R = 40000000*3;                       // set load value (1 Hz rate)
+            TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
+            TIMER4_IMR_R |= TIMER_IMR_TATOIM;                // turn-on interrupt
+
+            NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
+        }
+
         if (etherIsDataAvailable())
         {
             if (etherIsOverflow())
@@ -394,7 +415,8 @@ int main(void)
                          SendTcpAck1(data);
                          _delay_cycles(6);
                          SendMqttUnSubscribeClient(data,UnSub_topic);
-                         UnSubflag = false;
+                         Switchcase = UNSUB;
+
                      }
 
                  }
@@ -407,7 +429,7 @@ int main(void)
                      {
                          if(IsTcpAck(data))//IT comes when QoS level of publish is 0
                          {
-                             Subflag = false;
+                             Pubflag = false;
                              tcpstate = TCPCLOSED;
                              AvdSYN = true;
 
@@ -420,7 +442,7 @@ int main(void)
                          Pubflag = false;
                          tcpstate = TCPCLOSED;
                          SendMqttPingRequest(data);
-                         waitMicrosecond(1000000);
+                         //waitMicrosecond(1000000);
 
                          Switchcase = 0;
                      }
@@ -443,10 +465,30 @@ int main(void)
                      {
                          //SendTcpAck1(data);
                          //_delay_cycles(6);
+                         waitMicrosecond(5000000);
                          SverPubFlag = true;
                          Switchcase = 0;
                          Subflag = false;
+
                      }
+                     break;
+
+                 case UNSUB:
+                     if(IsUnsubAck(data))
+                     {
+                         Switchcase = 0;
+                         UnSubflag = false;
+                     }
+                     break;
+
+                 case PING:
+
+                     if(IsMqttPingResponse(data))
+                     {
+                         SendTcpAck1(data);
+                         Switchcase = 0;
+                     }
+
                      break;
 
                  default:
@@ -456,48 +498,25 @@ int main(void)
                  }
 
 
-                 if(IsMqttPingResponse(data))
-                 {
-                     SendTcpAck1(data);
-                 }
+
 
                  if(IsMqttpublishServer(data))
                  {
-
-                    // NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
-                     stopTimer((_callback)toggleFlag);
+                     TIMER4_IMR_R &= ~TIMER_IMR_TATOIM;                // turn-off interrupt
+                     NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
+                     //stopTimer((_callback)toggleFlag);
                      //SverPubFlag = false;
 
                      Pub_server_data = CollectPubData(data);
                      putsUart0(Pub_server_data);
                      putsUart0("\n\r");
                      SendTcpAck1(data);
+                     tcpstate = TCPCLOSED;
 
                  }
 
 
-                 if(SverPubFlag)
-                 {
 
-                     if(SverPubFlag)
-                     {
-                         SendMqttPingRequest(data);
-                     }
-
-                     startPeriodicTimer((_callback)toggleFlag,2);
-
-//                     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
-//                     _delay_cycles(3);
-//                     // Configure Timer 4 for 1 sec tick
-//                     TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
-//                     TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
-//                     TIMER4_TAMR_R = TIMER_TAMR_TAMR_PERIOD;          // configure for periodic mode (count down)
-//                     TIMER4_TAILR_R = 40000000*3;                       // set load value (1 Hz rate)
-//                     TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
-//                     TIMER4_IMR_R |= TIMER_IMR_TATOIM;                // turn-on interrupt
-//
-//                     NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
-                 }
 
              }
 

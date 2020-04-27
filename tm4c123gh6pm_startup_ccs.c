@@ -42,8 +42,8 @@ static void IntDefaultHandler(void);
 //
 //*****************************************************************************
 extern void _c_int00(void);
-extern void tickIsr(void);
-//extern void toggleFlag(void);
+//extern void tickIsr(void);
+extern void toggleFlag(void);
 
 //*****************************************************************************
 //
@@ -156,7 +156,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     IntDefaultHandler,                      // I2C2 Master and Slave
     IntDefaultHandler,                      // I2C3 Master and Slave
-    tickIsr,                                // Timer 4 subtimer A
+    toggleFlag,                                // Timer 4 subtimer A
     IntDefaultHandler,                      // Timer 4 subtimer B
     0,                                      // Reserved
     0,                                      // Reserved

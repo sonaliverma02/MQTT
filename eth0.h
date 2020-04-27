@@ -59,7 +59,9 @@
 enum _change
 {
     PUB = 1,
-    SUB
+    SUB,
+    UNSUB,
+    PING
 }change;
 
 struct _SubTopicFrame
@@ -115,6 +117,7 @@ bool IsMqttpublishServer(uint8_t packet[]);
 bool IsPubAck(uint8_t packet[]);
 bool IsPubRec(uint8_t packet[]);
 bool IsSubAck(uint8_t packet[]);
+bool IsUnsubAck(uint8_t packet[]);
 bool IsMqttPingResponse(uint8_t packet[]);
 bool IsMqttPublishServer(uint8_t packet[]);
 
