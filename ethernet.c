@@ -55,6 +55,7 @@ uint8_t state;
 uint8_t tcpstate = TCPCLOSED;
 
 bool Conflag = false;
+bool Disflag = false;
 bool Pubflag = false;
 bool Subflag = false;
 bool UnSubflag  = false;
@@ -282,6 +283,13 @@ int main(void)
                 tcpstate = TCPCLOSED;
             }
 
+
+            if(isCommand(&info,"disconnect",1))
+            {
+
+                Disflag = true;
+
+            }
             if(isCommand(&info,"ifconfig",1))
             {
                 displayConnectionInfo();
@@ -313,6 +321,12 @@ int main(void)
             Switchcase = PING;
 
             NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
+        }
+        if(Disflag)
+        {
+            sendMqttDisconnectRequest(data);
+            Disflag = false;
+           Switchcase = DISCON;
         }
 
         if (etherIsDataAvailable())
@@ -393,6 +407,7 @@ int main(void)
                         SendTcpAck1(data);
                         _delay_cycles(6);
                         SendMqttPublishClient(data,Pub_topic,Pub_data);
+
                         Switchcase = PUB;
                         //_delay_cycles(6);
                     }
@@ -492,6 +507,15 @@ int main(void)
 
                     break;
 
+                case DISCON:
+                    if(ISTcpFinAck(data))
+                    {
+                        SendTcpFin(data);
+
+                        tcpstate = TCPCLOSED;
+
+                    }
+                    break;
                 default:
 
                     break;
