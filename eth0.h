@@ -61,7 +61,8 @@ enum _change
     PUB = 1,
     SUB,
     UNSUB,
-    PING
+    PING,
+    DISCON
 }change;
 
 struct _SubTopicFrame
@@ -149,6 +150,7 @@ void SendMqttUnSubscribeClient(uint8_t packet[], char* Topic);
 void SendMqttPublishRel(uint8_t packet[]);
 void SendMqttPingRequest(uint8_t packet[]);
 char* CollectPubData(uint8_t packet[]);
+void sendMqttDisconnectRequest(uint8_t packet[]);
 
 uint16_t htons(uint16_t value);
 #define ntohs htons

@@ -30,6 +30,7 @@
 #include "wait.h"
 #include "gpio.h"
 #include "spi0.h"
+#include "EEPROM.h"
 
 // Pins
 #define CS PORTA,3
@@ -1405,10 +1406,10 @@ void SendTcpSynmessage(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = (uint8_t)readEeprom(0x0020);
+    ip->destIp[1] = (uint8_t)readEeprom(0x0021);
+    ip->destIp[2] = (uint8_t)readEeprom(0x0022);
+    ip->destIp[3] = (uint8_t)readEeprom(0x0023);
 
     src_prt = htons(MyRand(1000,3000));
 
@@ -2534,6 +2535,7 @@ char* CollectPubData(uint8_t packet[])
 
 
     data_len = (uint16_t)Msg_len - Top_len - 2;
+    uint8_t uo = data_len;
     j = 0;
     while(data_len != 0)
     {
@@ -2542,15 +2544,114 @@ char* CollectPubData(uint8_t packet[])
         j++;
         data_len--;
     }
-/*
-    for(i = data_len; i < 10; i++)
+
+
+    for(i = uo; i < 20; i++)
     {
         Data[i] = 0;
     }
-*/
+
     return Data;
 }
 
+void sendMqttDisconnectRequest(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    uint8_t i,flags,Offset;
+    uint16_t x = 20;
+    uint16_t a;
+
+    uint8_t *copyData ;
+
+    //populating ether field
+    for(i = 0; i < HW_ADD_LENGTH; i++)
+    {
+        ether->destAddress[i] = ether->destAddress[i];
+    }
+
+    ether->sourceAddress[0] = 2;
+    ether->sourceAddress[1] = 3;
+    ether->sourceAddress[2] = 4;
+    ether->sourceAddress[3] = 5;
+    ether->sourceAddress[4] = 6;
+    ether->sourceAddress[5] = 141;
+
+    ether->frameType = htons(0x0800);
+
+    //populating IP field
+    ip->typeOfService = 0;
+    ip->ttl = 128;
+    ip->protocol = 6; // TCP
+    ip->id = 0;
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
+
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
+
+    uint32_t temp32;
+      uint16_t temp16;
+
+      temp16 = tcp->destPort;
+      tcp->destPort = tcp->sourcePort;
+      tcp->sourcePort = temp16;
+
+
+      temp32 = tcp->AckNum;
+      tcp->AckNum = tcp->SeqNum;
+      tcp->SeqNum = temp32;
+
+       Offset = x >> 2;
+       flags = 0x18; // for PSH and ACK
+       a = (Offset << 12) + flags;
+       tcp->DoRF = htons(a);
+       tcp->WindowSize = htons(1280);
+       tcp->CheckSum = 0;
+       tcp->UrgentPtr = 0;
+
+
+       ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 2);
+
+       // 32-bit sum over ip header
+       sum = 0;
+       etherSumWords(&ip->revSize, 10);
+       etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
+       ip->headerChecksum = getEtherChecksum();
+
+       copyData = &tcp->data;
+
+       copyData[0] = 0xe0;
+       copyData[1] = 00;
+
+       uint16_t tmp16;
+
+       uint16_t tcpLen = htons(20 + 2);
+       // 32-bit sum over pseudo-header
+       sum = 0;
+
+       etherSumWords(ip->sourceIp, 8);
+       tmp16 = ip->protocol;
+       sum += (tmp16 & 0xff) << 8;
+       etherSumWords(&tcpLen, 2);
+       // add udp header except crc
+
+
+       etherSumWords(tcp,20+2);
+       //etherSumWords(&tcp->data, tcpSize);
+
+       tcp->CheckSum = getEtherChecksum();
+
+       // send packet with size = ether + tcp hdr + ip header + tcp_size
+       etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + 2 );
+}
 /*
 void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
 {
@@ -2689,8 +2790,11 @@ void SendTcpFin(uint8_t packet[])
         }
      */
     //populating TCP
-    tcp->destPort = htons(tcp->sourcePort);
-    tcp->sourcePort = htons(23);
+    uint16_t temp16;
+    temp16 = tcp->destPort;
+    tcp->destPort = tcp->sourcePort;
+    tcp->sourcePort = temp16;
+
 
     //tcp->SeqNum = tcp->AckNum;
     //tcp->AckNum = tcp->SeqNum + htons32(1);
