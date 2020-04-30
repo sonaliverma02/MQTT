@@ -1161,20 +1161,20 @@ bool IsSubAck(uint8_t packet[])
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
     bool ok;
-
-    ok = (ether->destAddress[0] == 2);
-    ok &= (ether->destAddress[1] == 3);
-    ok &= (ether->destAddress[2] == 4);
-    ok &= (ether->destAddress[3] == 5);
-    ok &= (ether->destAddress[4] == 6);
-    ok &= (ether->destAddress[5] == 141);
+//
+//    ok = (ether->destAddress[0] == 2);
+//    ok &= (ether->destAddress[1] == 3);
+//    ok &= (ether->destAddress[2] == 4);
+//    ok &= (ether->destAddress[3] == 5);
+//    ok &= (ether->destAddress[4] == 6);
+//    ok &= (ether->destAddress[5] == 141);
 
     uint8_t* copydata = &tcp->data;
-
+    ok = (copydata[0] == 0x90);
     if(ok)
     {
-        ok = (copydata[0] == 0x90); // compare with Subscribe Ack
-       // PayloadSize = htons(ip->length) - 20 - 20;
+        //ok = (copydata[0] == 0x90); // compare with Subscribe Ack
+        PayloadSize = 5;
     }
 
     return ok;
@@ -1406,10 +1406,10 @@ void SendTcpSynmessage(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = (uint8_t)readEeprom(0x0020);
-    ip->destIp[1] = (uint8_t)readEeprom(0x0021);
-    ip->destIp[2] = (uint8_t)readEeprom(0x0022);
-    ip->destIp[3] = (uint8_t)readEeprom(0x0023);
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
 
     src_prt = htons(MyRand(1000,3000));
 
@@ -1940,13 +1940,16 @@ void SendTcpAck1(uint8_t packet[])
     ip->protocol = 6; // TCP
     ip->id = 0;
     ip->flagsAndOffset = htons(0x4000); //don't fragment
-    uint8_t temp8;
-    for(i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        temp8 = ip->destIp[i];
-        ip->destIp[i] = ip->sourceIp[i];
-        ip->sourceIp[i] = temp8;
-    }
+
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
+
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
 
     //populating TCP
     uint32_t temp32;
@@ -2435,28 +2438,25 @@ void SendMqttPingRequest(uint8_t packet[])
     ip->ttl = 128;
     ip->protocol = 6; // TCP
     ip->id = 0;
-    uint8_t temp8;
-    for(i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        temp8 = ip->destIp[i];
-        ip->destIp[i] = ip->sourceIp[i];
-        ip->sourceIp[i] = temp8;
-    }
 
-    //populating TCP
-    uint32_t temp32;
-    uint16_t temp16;
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
 
-    temp16 = tcp->destPort;
-    tcp->destPort = tcp->sourcePort;
-    tcp->sourcePort = temp16;
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
+
+    tcp->destPort =  tcp->destPort;
+    tcp->sourcePort = tcp->sourcePort;
 
 
-    temp32 = tcp->AckNum;
-    tcp->AckNum = tcp->SeqNum;
-    tcp->SeqNum = temp32;
 
-    tcp->AckNum = tcp->AckNum + htons32(PayloadSize);
+    tcp->SeqNum = tcp->SeqNum;;
+
+    tcp->AckNum = tcp->AckNum ;
 
     Offset = x >> 2;
     flags = 0x18; // PUSH ACK
