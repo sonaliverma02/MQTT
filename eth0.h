@@ -73,6 +73,11 @@ struct _SubTopicFrame
 
 }SubTopicFrame;
 
+typedef struct _Elements
+{
+    char topic[10];
+    char Data[10];
+}Elements;
 //-----------------------------------------------------------------------------
 // Subroutines
 //-----------------------------------------------------------------------------
@@ -149,10 +154,12 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic);
 void SendMqttUnSubscribeClient(uint8_t packet[], char* Topic);
 void SendMqttPublishRel(uint8_t packet[]);
 void SendMqttPingRequest(uint8_t packet[]);
-char* CollectPubData(uint8_t packet[]);
+Elements CollectPubData(uint8_t packet[]);
 void sendMqttDisconnectRequest(uint8_t packet[]);
 
 uint16_t htons(uint16_t value);
 #define ntohs htons
+
+void stringCopy(char str1[], char str2[]);
 
 #endif

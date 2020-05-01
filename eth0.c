@@ -137,7 +137,6 @@ uint16_t src_prt;
 bool    mqttEnabled = false;
 bool EtherDhcp = false;
 bool AvdSYN = true;
-extern bool SverPubFlag;
 //ipAddress
 uint8_t DhcpIpaddress[4];
 uint8_t DhcpipGwAddress[4];
@@ -1161,20 +1160,20 @@ bool IsSubAck(uint8_t packet[])
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
     bool ok;
-
-    ok = (ether->destAddress[0] == 2);
-    ok &= (ether->destAddress[1] == 3);
-    ok &= (ether->destAddress[2] == 4);
-    ok &= (ether->destAddress[3] == 5);
-    ok &= (ether->destAddress[4] == 6);
-    ok &= (ether->destAddress[5] == 141);
+//
+//    ok = (ether->destAddress[0] == 2);
+//    ok &= (ether->destAddress[1] == 3);
+//    ok &= (ether->destAddress[2] == 4);
+//    ok &= (ether->destAddress[3] == 5);
+//    ok &= (ether->destAddress[4] == 6);
+//    ok &= (ether->destAddress[5] == 141);
 
     uint8_t* copydata = &tcp->data;
-
+    ok = (copydata[0] == 0x90);
     if(ok)
     {
-        ok = (copydata[0] == 0x90); // compare with Subscribe Ack
-       // PayloadSize = htons(ip->length) - 20 - 20;
+        //ok = (copydata[0] == 0x90); // compare with Subscribe Ack
+        PayloadSize = 5;
     }
 
     return ok;
@@ -1314,7 +1313,7 @@ static uint8_t stringLen(char* str)
      return count;
 }
 
-static void stringCopy(char str1[], char str2[])
+void stringCopy(char str1[], char str2[])
 {
     uint8_t i;
 
@@ -1406,10 +1405,10 @@ void SendTcpSynmessage(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = (uint8_t)readEeprom(0x0020);
-    ip->destIp[1] = (uint8_t)readEeprom(0x0021);
-    ip->destIp[2] = (uint8_t)readEeprom(0x0022);
-    ip->destIp[3] = (uint8_t)readEeprom(0x0023);
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
 
     src_prt = htons(MyRand(1000,3000));
 
@@ -1470,34 +1469,27 @@ void SendTcpSynAckmessage(uint8_t packet[])
     ip->revSize = 0x45;
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
     tcpOptions* tcpopt;
-
     uint8_t i,flags,Offset;
     uint16_t x = 24;
     uint16_t a;
-
     //uint8_t* tcpoptions;
-
     // populating ether frame
     for(i = 0; i < HW_ADD_LENGTH; i++)
     {
         ether->destAddress[i] = ether->sourceAddress[i];
     }
-
     ether->sourceAddress[0] = 2;
     ether->sourceAddress[1] = 3;
     ether->sourceAddress[2] = 4;
     ether->sourceAddress[3] = 5;
     ether->sourceAddress[4] = 6;
     ether->sourceAddress[5] = 141;
-
     ether->frameType = htons(0x0800);
-
     //populating IP field
     ip->typeOfService = 0;
     ip->ttl = 55;
     ip->protocol = 6; // TCP
     ip->id = 0;
-
     uint8_t temp8;
     for(i = 0; i < IP_ADD_LENGTH; i++)
     {
@@ -1505,15 +1497,11 @@ void SendTcpSynAckmessage(uint8_t packet[])
         ip->destIp[i] = ip->sourceIp[i];
         ip->sourceIp[i] = temp8;
     }
-
-
     //populating TCP
     tcp->destPort = ntohs(tcp->sourcePort);
     tcp->sourcePort = htons(1883);
-
     tcp->AckNum = tcp->SeqNum + htons32(0x00000001);
     tcp->SeqNum = 0x00000000;
-
     Offset = x >> 2;
     flags = 0x12; // for SYN and ACK
     a = (Offset << 12) + flags;
@@ -1521,37 +1509,28 @@ void SendTcpSynAckmessage(uint8_t packet[])
     tcp->WindowSize = htons(1280);
     tcp->CheckSum = 0;
     tcp->UrgentPtr = 0;
-
     //populating TCP options
-
     tcpopt->MSSOption = 2;
     tcpopt->MSSlen = 4;
     tcpopt->MSSval = htons(0x0500);
-
     ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + 4);
     //Ip checksum
     sum=0;
     etherSumWords(&ip->revSize, 10);
     etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
     ip->headerChecksum = getEtherChecksum();
-
     //TCP checksum
-
     uint16_t tmp16;
-
     uint16_t tcpLen = htons(20+4);
     sum = 0;
     etherSumWords(ip->sourceIp, 8);
-
     tmp16 = ip->protocol;
     sum += (tmp16 & 0xff) << 8;
     etherSumWords(&tcpLen,2);
-
     etherSumWords(tcp, 20+4);
     //etherSumWords(tcpopt,4);
    // etherSumWords(&tcp->data, 0);
     tcp->CheckSum = getEtherChecksum();
-
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 4);
 }
  */
@@ -1940,13 +1919,16 @@ void SendTcpAck1(uint8_t packet[])
     ip->protocol = 6; // TCP
     ip->id = 0;
     ip->flagsAndOffset = htons(0x4000); //don't fragment
-    uint8_t temp8;
-    for(i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        temp8 = ip->destIp[i];
-        ip->destIp[i] = ip->sourceIp[i];
-        ip->sourceIp[i] = temp8;
-    }
+
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
+
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
 
     //populating TCP
     uint32_t temp32;
@@ -2403,13 +2385,13 @@ void SendMqttPublishRel(uint8_t packet[])
 
 void SendMqttPingRequest(uint8_t packet[])
 {
-    SverPubFlag = false;
+
     etherFrame* ether = (etherFrame*)packet;
     ipFrame* ip = (ipFrame*)&ether->data;
     ip->revSize = 0x45;
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
 
-    uint8_t i,flags,Offset;
+    uint8_t flags,Offset;
     uint16_t x = 20;
     uint16_t a;
 
@@ -2435,28 +2417,23 @@ void SendMqttPingRequest(uint8_t packet[])
     ip->ttl = 128;
     ip->protocol = 6; // TCP
     ip->id = 0;
-    uint8_t temp8;
-    for(i = 0; i < IP_ADD_LENGTH; i++)
-    {
-        temp8 = ip->destIp[i];
-        ip->destIp[i] = ip->sourceIp[i];
-        ip->sourceIp[i] = temp8;
-    }
 
-    //populating TCP
-    uint32_t temp32;
-    uint16_t temp16;
+    ip->sourceIp[0] = 192;
+    ip->sourceIp[1] = 168;
+    ip->sourceIp[2] = 1;
+    ip->sourceIp[3] = 141;
 
-    temp16 = tcp->destPort;
-    tcp->destPort = tcp->sourcePort;
-    tcp->sourcePort = temp16;
+    ip->destIp[0] = 192;
+    ip->destIp[1] = 168;
+    ip->destIp[2] = 1;
+    ip->destIp[3] = 190;
 
+    tcp->destPort =  tcp->destPort;
+    tcp->sourcePort = tcp->sourcePort;
 
-    temp32 = tcp->AckNum;
-    tcp->AckNum = tcp->SeqNum;
-    tcp->SeqNum = temp32;
+    tcp->SeqNum = tcp->SeqNum;;
 
-    tcp->AckNum = tcp->AckNum + htons32(PayloadSize);
+    tcp->AckNum = tcp->AckNum ;
 
     Offset = x >> 2;
     flags = 0x18; // PUSH ACK
@@ -2497,7 +2474,7 @@ void SendMqttPingRequest(uint8_t packet[])
     etherPutPacket((uint8_t*)ether, 14 + ((ip->revSize & 0xF) * 4) +  20 + 2);
 }
 
-char* CollectPubData(uint8_t packet[])
+Elements CollectPubData(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
     ipFrame* ip = (ipFrame*)&ether->data;
@@ -2507,10 +2484,10 @@ char* CollectPubData(uint8_t packet[])
     tcp->sourcePort = htons(1883);
     tcp->destPort   = src_prt;
 
+    Elements e;
     uint8_t* copydata = &tcp->data;
     uint8_t i,j;
-    char* topic;
-    char* Data;
+
 
     //uint8_t Mask = copydata[0]&0x0F;
 
@@ -2530,28 +2507,33 @@ char* CollectPubData(uint8_t packet[])
 
     for(i = 4; i < (Top_len + 4); i++)
     {
-        topic[i-4] = (char)copydata[i];
+        e.topic[i-4] = (char)copydata[i];
     }
 
+    uint8_t k = 0;
+
+    for(k = Top_len; k < 9 ; k++)
+    {
+        e.topic[k] = 0;
+    }
 
     data_len = (uint16_t)Msg_len - Top_len - 2;
     uint8_t uo = data_len;
     j = 0;
     while(data_len != 0)
     {
-        Data[j] = (char)copydata[i];
+        e.Data[j] = (char)copydata[i];
         i++;
         j++;
         data_len--;
     }
 
-
-    for(i = uo; i < 20; i++)
+    for(i = uo ; i < 9 ; i++)
     {
-        Data[i] = 0;
+        e.Data[j] = 0;
     }
 
-    return Data;
+    return e;
 }
 
 void sendMqttDisconnectRequest(uint8_t packet[])
@@ -2587,6 +2569,8 @@ void sendMqttDisconnectRequest(uint8_t packet[])
     ip->ttl = 128;
     ip->protocol = 6; // TCP
     ip->id = 0;
+    ip->flagsAndOffset = htons(0x4000); //don't fragment
+
     ip->sourceIp[0] = 192;
     ip->sourceIp[1] = 168;
     ip->sourceIp[2] = 1;
@@ -2598,12 +2582,9 @@ void sendMqttDisconnectRequest(uint8_t packet[])
     ip->destIp[3] = 190;
 
     uint32_t temp32;
-      uint16_t temp16;
 
-      temp16 = tcp->destPort;
-      tcp->destPort = tcp->sourcePort;
-      tcp->sourcePort = temp16;
-
+    tcp->sourcePort = src_prt;
+    tcp->destPort = htons(1883);
 
       temp32 = tcp->AckNum;
       tcp->AckNum = tcp->SeqNum;
@@ -2659,39 +2640,31 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     ipFrame* ip = (ipFrame*)&ether->data;
     ip->revSize = 0x45;
     tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-
     uint8_t i,flags,Offset;
     uint16_t x = 20;
     uint16_t a;
-
     uint8_t *copyData;
     for(i = 0; i < HW_ADD_LENGTH; i++)
     {
         ether->destAddress[i] = ether->destAddress[i];
     }
-
     ether->sourceAddress[0] = 2;
     ether->sourceAddress[1] = 3;
     ether->sourceAddress[2] = 4;
     ether->sourceAddress[3] = 5;
     ether->sourceAddress[4] = 6;
     ether->sourceAddress[5] = 141;
-
     ether->frameType = htons(0x0800);
-
     //populating IP field
     ip->typeOfService = 0;
     ip->ttl = 55;
     ip->protocol = 6; // TCP
     ip->id = 0;
-
     //populating TCP
     tcp->destPort = tcp->destPort;
     //tcp->sourcePort = htons(23);
-
     tcp->SeqNum = tcp->SeqNum;
     tcp->AckNum = tcp->AckNum;
-
     Offset = x >> 2;
     flags = 0x18; // for PSH and ACK
     a = (Offset << 12) + flags;
@@ -2699,34 +2672,26 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     tcp->WindowSize = htons(1280);
     tcp->CheckSum = 0;
     tcp->UrgentPtr = 0;
-
     ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + tcpSize);
-
     // 32-bit sum over ip header
     sum = 0;
     etherSumWords(&ip->revSize, 10);
     etherSumWords(ip->sourceIp, ((ip->revSize & 0xF) * 4) - 12);
     ip->headerChecksum = getEtherChecksum();
-
     copyData = &tcp->data;
     for (i = 0; i < tcpSize; i++)
     {
         copyData[i] = tcpData[i];
     }
-
     uint16_t tmp16;
-
     uint16_t tcpLen = htons(20 + tcpSize);
     // 32-bit sum over pseudo-header
     sum = 0;
-
     etherSumWords(ip->sourceIp, 8);
     tmp16 = ip->protocol;
     sum += (tmp16 & 0xff) << 8;
     etherSumWords(&tcpLen, 2);
     // add udp header except crc
-
-
     //uint16_t destPort = htons(tcp->destPort);
     //etherSumWords(&tcp->sourcePort,2);
     //sum += (destPort & 0xFF) << 8;
@@ -2734,12 +2699,9 @@ void SendTcpmessage(uint8_t packet[], uint8_t* tcpData, uint8_t tcpSize)
     //    sum += htons32(tcp->SeqNum);
     //    sum += htons32(tcp->AckNum);
     //    etherSumWords(&tcp->DoRF, 8);
-
     etherSumWords(tcp,20+tcpSize);
     //etherSumWords(&tcp->data, tcpSize);
-
     tcp->CheckSum = getEtherChecksum();
-
     // send packet with size = ether + tcp hdr + ip header + tcp_size
     etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + tcpSize );
 }
@@ -3082,4 +3044,3 @@ void etherGetMacAddress(uint8_t mac[6])
     for (i = 0; i < 6; i++)
         mac[i] = macAddress[i];
 }
-

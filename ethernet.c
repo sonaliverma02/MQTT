@@ -52,15 +52,21 @@
 #define PUSH_BUTTON PORTF,4
 
 uint8_t state;
-uint8_t tcpstate = TCPCLOSED;
+uint8_t tcpstate;
+uint32_t counterTimer =0 ;
 
 bool Conflag = false;
 bool Disflag = false;
+bool pingflag = false;
 bool Pubflag = false;
 bool Subflag = false;
 bool UnSubflag  = false;
 extern bool AvdSYN;
-bool SverPubFlag = false;
+
+
+#define AIN0_MASK 8
+#define AIN1_MASK 4
+
 
 //bool initflag = true;
 //-----------------------------------------------------------------------------
@@ -74,15 +80,41 @@ void initHw()
     // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
     SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
 
+
+    SYSCTL_RCGCADC_R |= SYSCTL_RCGCADC_R0 | SYSCTL_RCGCADC_R1; // ENABLING AD0 and AD1
+
+    SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOE;
+
+    // Configure AIN0 and AI1 as an analog input
+    GPIO_PORTE_AFSEL_R |= AIN0_MASK | AIN1_MASK;                 // select alternative functions for AIN0 and AIN1 on Port E (PE3 and PE2)
+    GPIO_PORTE_DEN_R &= ~AIN0_MASK & ~AIN1_MASK;                  // turn off digital operation on pin PE3 and PE2
+    GPIO_PORTE_AMSEL_R |= AIN0_MASK | AIN1_MASK;                 // turn on analog operation on pin PE3 and PE2
+
+    // Configure ADC
+    ADC0_CC_R = ADC_CC_CS_SYSPLL;                    // select PLL as the time base (not needed, since default value)
+    ADC0_ACTSS_R &= ~ADC_ACTSS_ASEN0;                // disable sample sequencer 3 (SS3) for programming
+    ADC0_EMUX_R = ADC_EMUX_EM0_PROCESSOR;            // select SS3 bit in ADCPSSI as trigger
+    ADC0_SSMUX0_R = 0;                               // set first sample to AIN0
+    ADC0_SSCTL0_R = ADC_SSCTL0_END0;                 // mark first sample as the end
+    ADC0_ACTSS_R |= ADC_ACTSS_ASEN0;                 // enable SS3 for operation
+
+    ADC1_CC_R = ADC_CC_CS_SYSPLL;                    // select PLL as the time base (not needed, since default value)
+    ADC1_ACTSS_R &= ~ADC_ACTSS_ASEN0;                // disable sample sequencer 3 (SS3) for programming
+    ADC1_EMUX_R = ADC_EMUX_EM0_PROCESSOR;            // select SS3 bit in ADCPSSI as trigger
+    ADC1_SSMUX0_R = 1;                               // set first sample to AIN1
+    ADC1_SSCTL0_R = ADC_SSCTL0_END0;                 // mark first sample as the end
+    ADC1_ACTSS_R |= ADC_ACTSS_ASEN0;                 // enable SS3 for operation
+
     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
-               _delay_cycles(3);
-               // Configure Timer 4 for 1 sec tick
-               TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
-               TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
-               TIMER4_TAMR_R = TIMER_TAMR_TAMR_PERIOD;          // configure for periodic mode (count down)
-               TIMER4_TAILR_R = 40000000*10;                       // set load value (1 Hz rate)
-               TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
-               TIMER4_IMR_R |= TIMER_IMR_TATOIM;                // turn-on interrupt
+    _delay_cycles(3);
+    // Configure Timer 4 for 1 sec tick
+    TIMER4_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
+    TIMER4_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
+    TIMER4_TAMR_R = TIMER_TAMR_TACDIR;          // configure for periodic mode (count down)
+    TIMER4_IMR_R = 0;                                 // turn-off interrupt
+    TIMER4_TAV_R = 0;                                //Counter starts from zero
+    TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
+    NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80));             // turn-off interrupt
 
     // Enable clocks
     enablePort(PORTF);
@@ -94,14 +126,20 @@ void initHw()
     selectPinPushPullOutput(BLUE_LED);
     selectPinDigitalInput(PUSH_BUTTON);
 
-
 }
 
-
-void toggleFlag()
+int16_t readAdc0Temp()
 {
-    SverPubFlag = true;
-    TIMER4_ICR_R = TIMER_ICR_TATOCINT;
+    ADC0_SSCTL0_R |= ADC_SSCTL0_TS0;
+    while (ADC0_ACTSS_R & ADC_ACTSS_BUSY);           // wait until SS0 is not busy
+    return ADC0_SSFIFO0_R;                           // get single result from the FIFO
+}
+
+int16_t readAdc1Temp()
+{
+    ADC1_SSCTL0_R |= ADC_SSCTL0_TS0;
+    while (ADC1_ACTSS_R & ADC_ACTSS_BUSY);           // wait until SS0 is not busy
+    return ADC1_SSFIFO0_R;                           // get single result from the FIFO
 }
 
 void displayConnectionInfo()
@@ -164,7 +202,6 @@ void displayConnectionInfo()
 }
 
 
-
 //-----------------------------------------------------------------------------
 // Main
 //-----------------------------------------------------------------------------
@@ -182,12 +219,10 @@ int main(void)
     char* Sub_topic;
     char* UnSub_topic;
     SubTopicFrame.Topic_names = 0;
-    char* Pub_server_data;
+    //char* Pub_server_data;
     uint8_t Switchcase = 0;
 
     USER_DATA info;
-
-
 
     // Init controller
     initHw();
@@ -219,10 +254,6 @@ int main(void)
     // Main Loop
     // RTOS and interrupts would greatly improve this code,
     // but the goal here is simplicity
-
-
-
-
     while (true)
     {
 
@@ -238,18 +269,24 @@ int main(void)
                 if(stringcmp("mqtt",getFieldString(&info,2)))
                 {
                     etherSetMqttBrkIp(getFieldInteger(&info,3), getFieldInteger(&info,4), getFieldInteger(&info,5), getFieldInteger(&info,6));
-                    // etherSetIpAddress(getFieldInteger(&info,3), getFieldInteger(&info,4), getFieldInteger(&info,5), getFieldInteger(&info,6));
                     writeEeprom(0x0020,getFieldInteger(&info,3));
                     writeEeprom(0x0021,getFieldInteger(&info,4));
                     writeEeprom(0x0022,getFieldInteger(&info,5));
                     writeEeprom(0x0023,getFieldInteger(&info,6));
-                    if((getFieldInteger(&info,3) == 192) && (getFieldInteger(&info,4) == 168) && (getFieldInteger(&info,5) == 1) && (getFieldInteger(&info,6) == 190))
+                }
+
+            }
+
+            if(isCommand(&info,"help",2))
+            {
+                if(stringcmp("subs",getFieldString(&info,2)))
+                {
+                    putsUart0("Subscribed Topics are: \r\n");
+                    uint8_t i;
+                    for(i = 0; i < 9; i++)
                     {
-                        etherEnablemqtt();
-                        putsUart0("valid broker IP \n\r");
-                    }else{
-                        etherDisablemqtt();
-                        putsUart0("invalid broker IP \n\r");
+                        putsUart0(SubTopicFrame.SubTopicArr[i]);
+                        putsUart0("\n\r");
                     }
                 }
 
@@ -260,36 +297,38 @@ int main(void)
                 Pub_topic = getFieldString(&info,2);
                 Pub_data = getFieldString(&info,3);
                 Pubflag = true;
+                tcpstate = TCPCLOSED;
             }
 
             if(isCommand(&info,"connect",1))
             {
                 Conflag = true;
+                tcpstate = TCPCLOSED;
             }
 
             if(isCommand(&info,"subscribe",2))
             {
                 Sub_topic = getFieldString(&info,2);
                 Subflag = true;
+                //pingflag = false;
+                tcpstate = TCPCLOSED;
             }
 
             if(isCommand(&info,"unsubscribe",2))
             {
 
-//                TIMER4_IMR_R &= ~TIMER_IMR_TATOIM;                // turn-off interrupt
-//                NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
                 UnSub_topic = getFieldString(&info,2);
                 UnSubflag = true;
                 tcpstate = TCPCLOSED;
             }
 
-
             if(isCommand(&info,"disconnect",1))
             {
-
+                setPinValue(RED_LED, 0);
+                pingflag = false;
                 Disflag = true;
-
             }
+
             if(isCommand(&info,"ifconfig",1))
             {
                 displayConnectionInfo();
@@ -299,34 +338,56 @@ int main(void)
             {
                 NVIC_APINT_R = 0x05FA0004;
             }
+
         }
 
         // Packet processing
 
-            if(tcpstate == TCPCLOSED)
+        if(tcpstate == TCPCLOSED)
+        {
+            if(Pubflag || Subflag || UnSubflag || Conflag)
             {
-                if(Pubflag || Subflag || UnSubflag || Conflag)
+                SendTcpSynmessage(data);
+                tcpstate = TCPLISTEN;
+            }
+        }
+
+        if(pingflag)
+        {
+            if(TIMER4_TAV_R > 40e6)
+            {
+                counterTimer++;
+                TIMER4_TAV_R = 0;
+                /*
+                if(counterTimer%2 == 0)
                 {
-                    SendTcpSynmessage(data);
-                    tcpstate = TCPLISTEN;
+                    setPinValue(RED_LED, 1);
                 }
+                else
+                {
+                    setPinValue(RED_LED, 0);
+                }
+                  */
             }
 
-        if(SverPubFlag)
-        {
+            if(counterTimer > 30)
+            {
 
-            SendMqttPingRequest(data);
+                //SverPubFlag = true;
+                SendMqttPingRequest(data);
+                TIMER4_TAV_R =0;
+                counterTimer = 0;
+                Switchcase = PING;
 
-            //startPeriodicTimer((_callback)toggleFlag,2);
-            Switchcase = PING;
+            }
 
-            NVIC_EN2_R |= 1 << (INT_TIMER4A-80);
         }
+
         if(Disflag)
         {
             sendMqttDisconnectRequest(data);
             Disflag = false;
-           Switchcase = DISCON;
+            Switchcase = DISCON;
         }
 
         if (etherIsDataAvailable())
@@ -346,6 +407,7 @@ int main(void)
             {
                 etherSendArpResponse(data);
             }
+
 
             // Handle IP datagram
             if (etherIsIp(data))
@@ -378,6 +440,26 @@ int main(void)
                 }
             }
 
+            if(IsMqttpublishServer(data))
+            {
+                Elements pub;
+
+                pub = CollectPubData(data);
+                putsUart0(pub.Data);
+                putsUart0("\n\r");
+                SendTcpAck1(data);
+                //tcpstate = TCPCLOSED;
+                if(stringcmp("led",pub.topic))
+                {
+                    if(stringcmp("on",pub.Data))
+                    {
+                        setPinValue(BLUE_LED, 1);
+                    }else if(stringcmp("off",pub.Data))
+                    {
+                        setPinValue(BLUE_LED, 0);
+                    }
+                }
+            }
 
             if(tcpstate == TCPLISTEN)
             {
@@ -388,6 +470,7 @@ int main(void)
 
                 }
             }
+
             if(tcpstate == TCPSYN_RECV)
             {
 
@@ -398,6 +481,7 @@ int main(void)
                 //_delay_cycles(6);
 
             }
+
             if(tcpstate == TCPESTABLISHED)
             {
                 if(IsMqttConnectAck(data))
@@ -407,7 +491,6 @@ int main(void)
                         SendTcpAck1(data);
                         _delay_cycles(6);
                         SendMqttPublishClient(data,Pub_topic,Pub_data);
-
                         Switchcase = PUB;
                         //_delay_cycles(6);
                     }
@@ -418,7 +501,7 @@ int main(void)
                         _delay_cycles(6);
                         SendMqttSubscribeClient(data,Sub_topic);
                         Switchcase = SUB;
-                        //Subflag = false;
+                        Subflag = false;
                         //tcpstate = TCPCLOSED;
                     }
 
@@ -428,11 +511,9 @@ int main(void)
                         _delay_cycles(6);
                         SendMqttUnSubscribeClient(data,UnSub_topic);
                         Switchcase = UNSUB;
-
                     }
 
                 }
-
 
                 switch(Switchcase)
                 {
@@ -442,7 +523,6 @@ int main(void)
                         if(IsTcpAck(data))//IT comes when QoS level of publish is 0
                         {
                             Pubflag = false;
-                            tcpstate = TCPCLOSED;
                             AvdSYN = true;
 
                             Switchcase = 0;
@@ -452,9 +532,6 @@ int main(void)
                     if(IsPubAck(data)) // it comes when QoS level of publish is 1
                     {
                         Pubflag = false;
-                        tcpstate = TCPCLOSED;
-                       // SendMqttPingRequest(data);
-                        //waitMicrosecond(1000000);
 
                         Switchcase = 0;
                     }
@@ -465,8 +542,6 @@ int main(void)
                         //_delay_cycles(6);
                         SendMqttPublishRel(data);
                         Pubflag = false;
-                        tcpstate = TCPCLOSED;
-
 
                         Switchcase = 0;
                     }
@@ -476,24 +551,37 @@ int main(void)
                 case SUB:
                     if(IsSubAck(data))
                     {
-                        //SendTcpAck1(data);
-                        //_delay_cycles(6);
-                        waitMicrosecond(5000000);
-                        SverPubFlag = true;
+
+                        SendTcpAck1(data);
+                        TIMER4_TAV_R = 0;
                         Switchcase = 0;
-                        Subflag = false;
-
+                        pingflag = true;
+                        //Subflag = false;
                     }
-                    break;
 
+                    break;
                 case UNSUB:
                     if(IsUnsubAck(data))
                     {
-                        TIMER4_IMR_R &= ~TIMER_IMR_TATOIM;                // turn-off interrupt
-                        NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
-
                         Switchcase = 0;
                         UnSubflag = false;
+                        uint8_t i;
+                        for(i = 0; i < 10; i++)
+                        {
+                            if(stringcmp(SubTopicFrame.SubTopicArr[i], UnSub_topic))
+                            {
+                                break;
+                            }
+                        }
+
+                        while(i < 9)
+                        {
+                            stringCopy(SubTopicFrame.SubTopicArr[i], SubTopicFrame.SubTopicArr[i+1]);
+                            i++;
+                        }
+
+                        i = 0;
+                        //pingflag = true;
                     }
                     break;
 
@@ -504,86 +592,26 @@ int main(void)
                         SendTcpAck1(data);
                         Switchcase = 0;
                     }
-
                     break;
 
                 case DISCON:
                     if(ISTcpFinAck(data))
                     {
                         SendTcpFin(data);
-
+                        Disflag = false;
                         tcpstate = TCPCLOSED;
-
                     }
                     break;
+
                 default:
 
                     break;
 
                 }
 
-
-
-
-                if(IsMqttpublishServer(data))
-                {
-//                    TIMER4_IMR_R &= ~TIMER_IMR_TATOIM;                // turn-off interrupt
-//                     NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80)) ;
-                    //stopTimer((_callback)toggleFlag);
-                    //SverPubFlag = false;
-                    //etherGetPacket(data, MAX_PACKET_SIZE);
-                    Pub_server_data = CollectPubData(data);
-                    putsUart0(Pub_server_data);
-
-                    putsUart0("\n\r");
-                    //SendTcpAck1(data);
-                    tcpstate = TCPCLOSED;
-
-                }
-
-
-
-
             }
 
-            /*
-             if(tcpstate == TCPFINWAIT1)
-             {
-                 waitMicrosecond(500000);
-
-                     if(IsTcpAck(data))
-                     {
-                          SendTcpFin(data);
-                          tcpstate = TCPFINWAIT2;
-                     }
-
-
-
-                 //SendTcpFin(data);
-                _delay_cycles(6);
-
-             }
-
-             if(tcpstate == TCPFINWAIT2)
-             {
-                 if(IsTcpAck(data))
-                 {
-                     tcpstate = TCPTIMEWAIT;
-                    // waitMicrosecond(1000000);
-                 }
-             }
-
-             if(tcpstate == TCPTIMEWAIT)
-             {
-                 SendTcpLastAck(data);
-
-                 waitMicrosecond(1000000);
-                 tcpstate = TCPCLOSED;
-             }
-             */
-
         }
-
 
     }
 }
