@@ -1,3 +1,6 @@
+
+
+
 // Ethernet Example
 // Jason Losh
 
@@ -51,11 +54,10 @@
 #define GREEN_LED PORTF,3
 #define PUSH_BUTTON PORTF,4
 
-#define PB  (*((volatile uint32_t *)(0x42000000 + (0x400253FC-0x40000000)*32 + 4*4)))
-
 uint8_t state;
 uint8_t tcpstate;
 uint32_t counterTimer = 0;
+uint32_t counterTimer2 = 0;
 
 bool Conflag = false;
 bool Disflag = false;
@@ -65,12 +67,6 @@ bool Subflag = false;
 bool UnSubflag  = false;
 extern bool AvdSYN;
 
-
-#define AIN0_MASK 8
-
-
-
-//bool initflag = true;
 //-----------------------------------------------------------------------------
 // Subroutines                
 //-----------------------------------------------------------------------------
@@ -82,10 +78,13 @@ void initHw()
     // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
     SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
 
-
     SYSCTL_RCGCADC_R |= SYSCTL_RCGCADC_R0; // ENABLING AD0 and AD1
 
     SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOE;
+
+    GPIO_PORTE_AFSEL_R |= 0x08;                      // select alternative functions for AN0 (PE3)
+    GPIO_PORTE_DEN_R &= ~0x08;                       // turn off digital operation on pin PE3
+    GPIO_PORTE_AMSEL_R |= 0x08;                      // turn on analog operation on pin PE3
 
     // Configure ADC
     ADC0_CC_R = ADC_CC_CS_SYSPLL;                    // select PLL as the time base (not needed, since default value)
@@ -93,7 +92,7 @@ void initHw()
     ADC0_EMUX_R = ADC_EMUX_EM3_PROCESSOR;            // select SS0 bit in ADCPSSI as trigger
     ADC0_SSMUX3_R = 0;                               // set first sample to AIN0
     ADC0_SSCTL3_R = ADC_SSCTL3_END0 | ADC_SSCTL3_TS0;// mark first sample as the end
-    ADC0_ACTSS_R |= ADC_ACTSS_ASEN3;                 // enable SS0 for operation
+    ADC0_ACTSS_R |= ADC_ACTSS_ASEN3;
 
     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
     _delay_cycles(3);
@@ -105,6 +104,17 @@ void initHw()
     TIMER4_TAV_R = 0;                                //Counter starts from zero
     TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
     NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80));             // turn-off interrupt
+
+    SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R2;
+    _delay_cycles(3);
+    // Configure Timer 4 for 1 sec tick
+    TIMER2_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
+    TIMER2_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
+    TIMER2_TAMR_R = TIMER_TAMR_TACDIR;          // configure for periodic mode (count down)
+    TIMER2_IMR_R = 0;                                 // turn-off interrupt
+    TIMER2_TAV_R = 0;                                //Counter starts from zero
+    TIMER2_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
+    NVIC_EN0_R &= ~(1 << (INT_TIMER2A-16));             // turn-off interrupt
 
     // Enable clocks
     enablePort(PORTF);
@@ -219,6 +229,7 @@ int main(void)
 
     // Init controller
     initHw();
+    //InitADC();
 
     // Setup UART0 and EEPROM
     initUart0();
@@ -250,13 +261,16 @@ int main(void)
     // but the goal here is simplicity
     while (true)
     {
-
-
         // Put terminal processing here
         if (kbhitUart0())
         {
             getsUart0(&info);
             parseFields(&info);
+
+            if(isCommand(&info,"temp",1))
+            {
+                putsUart0(Get_Temp());
+            }
 
             if(isCommand(&info,"set",2))
             {
@@ -335,6 +349,23 @@ int main(void)
 
         }
 
+        if(TIMER2_TAV_R > 40e6)
+        {
+            counterTimer2++;
+            TIMER2_TAV_R = 0;
+        }
+
+        if(counterTimer2 > 15)
+        {
+            tcpstate = TCPCLOSED;
+            Pubflag = true;
+            Pub_topic = "temperature";
+            Pub_data = Get_Temp();
+            TIMER2_TAV_R = 0;
+            counterTimer2 = 0;
+            Switchcase = PUB;
+        }
+
         // Packet processing
 
         if(tcpstate == TCPCLOSED)
@@ -356,7 +387,6 @@ int main(void)
 
             if(counterTimer > 30)
             {
-
                 //SverPubFlag = true;
                 SendMqttPingRequest(data);
                 TIMER4_TAV_R = 0;
@@ -588,12 +618,6 @@ int main(void)
                     break;
 
                 }
-
-            }
-
-            while(PB) // NOT SURE WHEN TO PUBLISH DATA
-            {
-                Pub_data = Get_Temp();
 
             }
 
