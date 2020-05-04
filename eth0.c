@@ -1238,12 +1238,25 @@ bool IsMqttPingResponse(uint8_t packet[])
 }
 
 // Gets pointer to UDP payload of frame
-uint8_t* etherGetUdpData(uint8_t packet[])
+char* etherGetUdpData(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
     ipFrame* ip = (ipFrame*)&ether->data;
     udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    return &udp->data;
+    uint8_t* copydata = &udp->data;
+    uint8_t UDPLen = ntohs(udp->length) - 8;
+   static char udpdata[10];
+    uint8_t i;
+    for(i=0 ; i < UDPLen; i++)
+    {
+        udpdata[i] = (char)copydata[i];
+    }
+
+//    for(i = UDPLen; i < 9 ; i++)
+//    {
+//        udpdata[i] = 0;
+//    }
+    return udpdata;
 }
 
 // Send responses to a udp datagram 

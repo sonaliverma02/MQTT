@@ -215,9 +215,12 @@ void displayConnectionInfo()
 
 int main(void)
 {
-    uint8_t* udpData;
+
     uint8_t data[MAX_PACKET_SIZE];
+    //uint8_t udata[80];
     char* Pub_topic;
+//    uint8_t* udpData;
+//    uint8_t dataUdp ;
     char* Pub_data;
     char* Sub_topic;
     char* UnSub_topic;
@@ -349,7 +352,7 @@ int main(void)
 
         }
 
-        if(TIMER2_TAV_R > 40e6)
+       /* if(TIMER2_TAV_R > 40e6)
         {
             counterTimer2++;
             TIMER2_TAV_R = 0;
@@ -365,7 +368,7 @@ int main(void)
             counterTimer2 = 0;
             Switchcase = PUB;
         }
-
+*/
         // Packet processing
 
         if(tcpstate == TCPCLOSED)
@@ -416,13 +419,28 @@ int main(void)
 
             // Get packet
             etherGetPacket(data, MAX_PACKET_SIZE);
-
+            //etherGetPacket(udata, 80);
             // Handle ARP request
             if (etherIsArpRequest(data))
             {
                 etherSendArpResponse(data);
             }
 
+            if (etherIsUdp(data))
+            {
+
+                Pub_data = etherGetUdpData(data);
+                tcpstate = TCPCLOSED;
+                Pubflag = true;
+                Pub_topic = "udp";
+
+                //if (stringcmp("on",(char*)udpData))
+                //    setPinValue(GREEN_LED, 1);
+                //if (stringcmp("off",(char*)udpData))
+                  //  setPinValue(GREEN_LED, 0);
+               // etherSendUdpResponse(data, (uint8_t*)"Received", 9);
+
+            }
 
             // Handle IP datagram
             if (etherIsIp(data))
@@ -441,16 +459,7 @@ int main(void)
                     //   send the udp datagram (-d) to 192.168.1.199, port 1024 (-ud)
                     // sudo sendip -p ipv4 -is 192.168.1.198 -p udp -ud 1024 -d "on" 192.168.1.199
                     // sudo sendip -p ipv4 -is 192.168.1.198 -p udp -ud 1024 -d "off" 192.168.1.199
-                    if (etherIsUdp(data))
-                    {
-                        udpData = etherGetUdpData(data);
-                        if (stringcmp("on",(char*)udpData))
-                            setPinValue(GREEN_LED, 1);
-                        if (stringcmp("off",(char*)udpData))
-                            setPinValue(GREEN_LED, 0);
-                        etherSendUdpResponse(data, (uint8_t*)"Received", 9);
 
-                    }
 
                 }
             }
@@ -473,6 +482,10 @@ int main(void)
                     {
                         setPinValue(BLUE_LED, 0);
                     }
+                }
+                else if(stringcmp("udp",pub.topic))
+                {
+                    etherSendUdpResponse(data,(uint8_t*) pub.Data, 9);
                 }
             }
 
@@ -506,6 +519,7 @@ int main(void)
 
                     if(Pubflag)//if client is sending publish
                     {
+
                         SendMqttPublishClient(data,Pub_topic,Pub_data);
                         Switchcase = PUB;
                         //_delay_cycles(6);
