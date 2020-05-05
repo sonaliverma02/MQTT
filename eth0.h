@@ -102,7 +102,7 @@ void etherSendArpRequest(uint8_t packet[], uint8_t ip[]);
 
 bool etherIsUdp(uint8_t packet[]);
 bool IsArpResponse(uint8_t packet[]);
-uint8_t* etherGetUdpData(uint8_t packet[]);
+char* etherGetUdpData(uint8_t packet[]);
 void etherSendUdpResponse(uint8_t packet[], uint8_t* udpData, uint8_t udpSize);
 
 void etherEnableDhcpMode();
@@ -122,6 +122,7 @@ bool IsMqttConnectAck(uint8_t packet[]);
 bool IsMqttpublishServer(uint8_t packet[]);
 bool IsPubAck(uint8_t packet[]);
 bool IsPubRec(uint8_t packet[]);
+bool IsPubCom(uint8_t packet[]);
 bool IsSubAck(uint8_t packet[]);
 bool IsUnsubAck(uint8_t packet[]);
 bool IsMqttPingResponse(uint8_t packet[]);

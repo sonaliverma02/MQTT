@@ -78,6 +78,10 @@ void initHw()
     // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
     SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
 
+//    SYSCTL_RCC2_R = SYSCTL_RCC2_OSCSRC2_32;
+//
+//    SYSCTL_RCGCHIB_R |= SYSCTL_RCGCHIB_R0;
+
     SYSCTL_RCGCADC_R |= SYSCTL_RCGCADC_R0; // ENABLING AD0 and AD1
 
     SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOE;
@@ -91,9 +95,10 @@ void initHw()
     ADC0_ACTSS_R &= ~ADC_ACTSS_ASEN3;                // disable sample sequencer 3 (SS3) for programming
     ADC0_EMUX_R = ADC_EMUX_EM3_PROCESSOR;            // select SS0 bit in ADCPSSI as trigger
     ADC0_SSMUX3_R = 0;                               // set first sample to AIN0
-    ADC0_SSCTL3_R = ADC_SSCTL3_END0 | ADC_SSCTL3_TS0;// mark first sample as the end
+    ADC0_SSCTL3_R = ADC_SSCTL3_END0 | ADC_SSCTL3_TS0;// mark first sample as the end and set TS0 bit get raw value of internal temperature
     ADC0_ACTSS_R |= ADC_ACTSS_ASEN3;
 
+    //configuring timer 4 to send Ping request
     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R4;
     _delay_cycles(3);
     // Configure Timer 4 for 1 sec tick
@@ -105,9 +110,10 @@ void initHw()
     TIMER4_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
     NVIC_EN2_R &= ~(1 << (INT_TIMER4A-80));             // turn-off interrupt
 
+    //configuring timer 2 to publish internal temperature
     SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R2;
     _delay_cycles(3);
-    // Configure Timer 4 for 1 sec tick
+    // Configure Timer 2 for 1 sec tick
     TIMER2_CTL_R &= ~TIMER_CTL_TAEN;                 // turn-off timer before reconfiguring
     TIMER2_CFG_R = TIMER_CFG_32_BIT_TIMER;           // configure as 32-bit timer (A+B)
     TIMER2_TAMR_R = TIMER_TAMR_TACDIR;          // configure for periodic mode (count down)
@@ -115,6 +121,10 @@ void initHw()
     TIMER2_TAV_R = 0;                                //Counter starts from zero
     TIMER2_CTL_R |= TIMER_CTL_TAEN;                  // turn-on timer
     NVIC_EN0_R &= ~(1 << (INT_TIMER2A-16));             // turn-off interrupt
+
+//    HIB_IM_R  |= HIB_IM_WC;
+//    HIB_CTL_R = 0x40;
+//    while(HIB_MIS_R & 0x10);
 
     // Enable clocks
     enablePort(PORTF);
@@ -128,6 +138,9 @@ void initHw()
 
 }
 
+/*
+ * converts the raw value into actual value of internal temperature
+ */
 int16_t readAdc0Temp()
 {
     ADC0_PSSI_R |= ADC_PSSI_SS3;
@@ -135,6 +148,9 @@ int16_t readAdc0Temp()
     return ADC0_SSFIFO3_R;                           // get single result from the FIFO
 }
 
+/*
+ * Gets the internal temperature value in degree celcius
+ */
 char* Get_Temp()
 {
     int16_t T1 = readAdc0Temp();
@@ -215,21 +231,18 @@ void displayConnectionInfo()
 
 int main(void)
 {
-    uint8_t* udpData;
     uint8_t data[MAX_PACKET_SIZE];
     char* Pub_topic;
     char* Pub_data;
     char* Sub_topic;
     char* UnSub_topic;
     SubTopicFrame.Topic_names = 0;
-    //char* Pub_server_data;
     uint8_t Switchcase = 0;
 
     USER_DATA info;
 
     // Init controller
     initHw();
-    //InitADC();
 
     // Setup UART0 and EEPROM
     initUart0();
@@ -239,6 +252,8 @@ int main(void)
 
     // Init ethernet interface (eth0)
     putsUart0("\nStarting e0th0\n");
+    putsUart0("\n\r");
+    putsUart0("\nIt is recommended to set MQTT Broker IP before staring the project\n");
     putsUart0("\n\r");
     etherSetIpAddress(192,168,1,141);
     etherSetMacAddress(2, 3, 4, 5, 6, 141);
@@ -287,6 +302,24 @@ int main(void)
 
             if(isCommand(&info,"help",2))
             {
+                if(stringcmp("inputs",getFieldString(&info,2)))
+                {
+                    putsUart0("INPUTS 1. LED : subscribe led (give this command from putty and publish with topic name led and with data on/off on another mosquitto Client)\r\n");
+                    putsUart0("       2. Internal temperature: Temperature sensor will be publishing the temperature data with the topic name temperature for every 50 seconds\r\n");
+                    putsUart0("       3. UDP: give the following command in sfk shell (for windows) ----> sfk udpsend 192.168.1.141:5000 -listen ''hello''\r\n");
+                    putsUart0("               192.168.1.141 is IP of red board and 5000 is UDP port and hello is a UDP data\r\n");
+                }
+
+                if(stringcmp("outputs",getFieldString(&info,2)))
+                {
+                    putsUart0("OUTPUTS 1. LED: when subscribed to the led topic give the following commands through another mosquitto client (for windows):\r\n");
+                    putsUart0("                mosquitto_pub -h (broker IP) -t led -m on ------> If this command is given, then BLUE LED turns on\r\n");
+                    putsUart0("                mosquitto_pub -h (broker IP) -t led -m off ------> If this command is given, then BLUE LED turns off\r\n");
+                    putsUart0("\r\n");
+                    putsUart0("        2. Internal temperature: The incoming temperature data from RED BOARD can be subscribed through another mosquitto client with the topic name temperature\r\n");
+                    putsUart0("        3. UDP: when the command is given in sfk shell as mentioned in Inputs, Red Board publishes the UDP data with the topic name udp\r\n");
+                }
+
                 if(stringcmp("subs",getFieldString(&info,2)))
                 {
                     putsUart0("Subscribed Topics are: \r\n");
@@ -295,6 +328,7 @@ int main(void)
                     {
                         putsUart0(SubTopicFrame.SubTopicArr[i]);
                         putsUart0("\n\r");
+                        i++;
                     }
                 }
 
@@ -324,7 +358,6 @@ int main(void)
 
             if(isCommand(&info,"unsubscribe",2))
             {
-
                 UnSub_topic = getFieldString(&info,2);
                 UnSubflag = true;
                 tcpstate = TCPCLOSED;
@@ -349,13 +382,16 @@ int main(void)
 
         }
 
+        /*
+         * Publishes internal temperature for every 50 seconds
+         */
         if(TIMER2_TAV_R > 40e6)
         {
             counterTimer2++;
             TIMER2_TAV_R = 0;
         }
 
-        if(counterTimer2 > 15)
+        if(counterTimer2 > 50)
         {
             tcpstate = TCPCLOSED;
             Pubflag = true;
@@ -368,6 +404,10 @@ int main(void)
 
         // Packet processing
 
+        /*
+         * Sends TCP SYN
+         */
+
         if(tcpstate == TCPCLOSED)
         {
             if(Pubflag || Subflag || UnSubflag || Conflag)
@@ -377,6 +417,9 @@ int main(void)
             }
         }
 
+        /*
+         * sends Ping request for every 30 seconds
+         */
         if(pingflag)
         {
             if(TIMER4_TAV_R > 40e6)
@@ -387,17 +430,16 @@ int main(void)
 
             if(counterTimer > 30)
             {
-                //SverPubFlag = true;
                 SendMqttPingRequest(data);
                 TIMER4_TAV_R = 0;
                 counterTimer = 0;
                 Switchcase = PING;
             }
-
         }
 
-
-
+        /*
+         * Sends MQTT disconnect
+         */
         if(Disflag)
         {
             sendMqttDisconnectRequest(data);
@@ -423,6 +465,22 @@ int main(void)
                 etherSendArpResponse(data);
             }
 
+            /*
+             * sfk udpsend 192.168.1.141:5000 -listen "hello" (for windows)
+             *
+             * If UDP data is sent by sfk file, the UDP data converts into MQTT and publishes the
+             * UDP data with the topic name "udp"
+             *
+             * Sendip for linux
+             */
+
+            if (etherIsUdp(data))
+            {
+                Pub_data = etherGetUdpData(data);
+                tcpstate = TCPCLOSED;
+                Pubflag = true;
+                Pub_topic = "udp";
+            }
 
             // Handle IP datagram
             if (etherIsIp(data))
@@ -435,35 +493,24 @@ int main(void)
                         etherSendPingResponse(data);
                     }
 
-                    // Process UDP datagram
-                    // test this with a udp send utility like sendip
-                    //   if sender IP (-is) is 192.168.1.198, this will attempt to
-                    //   send the udp datagram (-d) to 192.168.1.199, port 1024 (-ud)
-                    // sudo sendip -p ipv4 -is 192.168.1.198 -p udp -ud 1024 -d "on" 192.168.1.199
-                    // sudo sendip -p ipv4 -is 192.168.1.198 -p udp -ud 1024 -d "off" 192.168.1.199
-                    if (etherIsUdp(data))
-                    {
-                        udpData = etherGetUdpData(data);
-                        if (stringcmp("on",(char*)udpData))
-                            setPinValue(GREEN_LED, 1);
-                        if (stringcmp("off",(char*)udpData))
-                            setPinValue(GREEN_LED, 0);
-                        etherSendUdpResponse(data, (uint8_t*)"Received", 9);
-
-                    }
-
                 }
             }
+
+            /*
+             * Returns true when broker publishes the data
+             */
 
             if(IsMqttpublishServer(data))
             {
                 Elements pub;
-
+                // collects the data and topic from MQTT broker when it publishes
                 pub = CollectPubData(data);
                 putsUart0(pub.Data);
                 putsUart0("\n\r");
                 SendTcpAck1(data);
-                //tcpstate = TCPCLOSED;
+                /*
+                 * IFTT for publish
+                 */
                 if(stringcmp("led",pub.topic))
                 {
                     if(stringcmp("on",pub.Data))
@@ -474,105 +521,88 @@ int main(void)
                         setPinValue(BLUE_LED, 0);
                     }
                 }
+                else if(stringcmp("udp",pub.topic))
+                {
+                    etherSendUdpResponse(data,(uint8_t*)pub.Data, 9);
+                }
             }
 
+            /*
+             * check wether SYN ACk is received
+             */
             if(tcpstate == TCPLISTEN)
             {
                 if(IsTcpSynAck(data))
                 {
-                    //SendTcpSynAckmessage(data);
                     tcpstate =  TCPSYN_RECV;
-
                 }
             }
 
+            /*
+             * Send ACk and Connect command
+             */
             if(tcpstate == TCPSYN_RECV)
             {
-
                 SendTcpAck(data);
                 _delay_cycles(6);
                 SendTcpPushAck(data);
                 tcpstate = TCPESTABLISHED;
-                //_delay_cycles(6);
-
             }
 
             if(tcpstate == TCPESTABLISHED)
             {
-                if(IsMqttConnectAck(data))
-                {
-                    SendTcpAck1(data);
-                    _delay_cycles(6);
-
-                    if(Pubflag)//if client is sending publish
-                    {
-                        SendMqttPublishClient(data,Pub_topic,Pub_data);
-                        Switchcase = PUB;
-                        //_delay_cycles(6);
-                    }
-
-                    if(Subflag)// if client is sending subscribe
-                    {
-                        SendMqttSubscribeClient(data,Sub_topic);
-                        Switchcase = SUB;
-                        Subflag = false;
-                        //tcpstate = TCPCLOSED;
-                    }
-
-                    if(UnSubflag)
-                    {
-                        SendMqttUnSubscribeClient(data,UnSub_topic);
-                        Switchcase = UNSUB;
-                    }
-                }
-
+                /*
+                 * check for the states (publish or subscribe or unsubscribe or ping response or Fin ack when disconnect request is sent)
+                 */
                 switch(Switchcase)
                 {
                 case PUB:
                     if(AvdSYN)
                     {
-                        if(IsTcpAck(data))//IT comes when QoS level of publish is 0
+                        if(IsTcpAck(data))//it comes when QoS level of publish is 0
                         {
                             Pubflag = false;
                             AvdSYN = true;
-
                             Switchcase = 0;
+                            pingflag = true;
                         }
                     }
 
                     if(IsPubAck(data)) // it comes when QoS level of publish is 1
                     {
+                        SendTcpAck1(data);
                         Pubflag = false;
                         Switchcase = 0;
+                        pingflag = true;
                     }
 
                     if(IsPubRec(data)) // it comes when QoS level of publish is 2
                     {
-                        // SendTcpAck1(data);
-                        //_delay_cycles(6);
                         SendMqttPublishRel(data);
                         Pubflag = false;
-
-                        Switchcase = 0;
                     }
 
+                    if(IsPubCom(data))
+                    {
+                        SendTcpAck1(data);
+                        Switchcase = 0;
+                        pingflag = true;
+                    }
                     break;
 
                 case SUB:
                     if(IsSubAck(data))
                     {
-
                         SendTcpAck1(data);
                         TIMER4_TAV_R = 0;
                         Switchcase = 0;
-                        pingflag = true;
-                        //Subflag = false;
                     }
-
                     break;
+
                 case UNSUB:
                     if(IsUnsubAck(data))
                     {
+                        SendTcpAck1(data);
                         Switchcase = 0;
                         UnSubflag = false;
                         uint8_t i;
@@ -607,9 +637,11 @@ int main(void)
                 case DISCON:
                     if(ISTcpFinAck(data))
                     {
+                        pingflag = false;
                         SendTcpFin(data);
                         Disflag = false;
                         tcpstate = TCPCLOSED;
+                        Switchcase = 0;
                     }
                     break;
 
@@ -617,6 +649,39 @@ int main(void)
 
                     break;
 
+                }
+
+                /*
+                 * check weather MQTT connect ACK is received
+                 */
+                if(IsMqttConnectAck(data))
+                {
+                    SendTcpAck1(data);
+                    _delay_cycles(6);
+
+                    //Sends Publish message
+                    if(Pubflag)//if client is sending publish
+                    {
+                        SendMqttPublishClient(data,Pub_topic,Pub_data);
+                        Switchcase = PUB;
+
+                    }
+
+                    //Sends Subscribe message
+                    if(Subflag)// if client is sending subscribe
+                    {
+                        SendMqttSubscribeClient(data,Sub_topic);
+                        Switchcase = SUB;
+                        Subflag = false;
+
+                    }
+
+                    //Sends Unsubscribe message
+                    if(UnSubflag)// if client is sending unsubscribe
+                    {
+                        SendMqttUnSubscribeClient(data,UnSub_topic);
+                        Switchcase = UNSUB;
+                    }
                 }
 
             }

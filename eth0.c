@@ -1152,6 +1152,36 @@ bool IsPubRec(uint8_t packet[])
     return ok;
 }
 
+bool IsPubCom(uint8_t packet[])
+{
+    etherFrame* ether = (etherFrame*)packet;
+    ipFrame* ip = (ipFrame*)&ether->data;
+    ip->revSize = 0x45;
+    tcpFrame* tcp = (tcpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
+
+    bool ok;
+
+    ok = (ether->destAddress[0] == 2);
+    ok &= (ether->destAddress[1] == 3);
+    ok &= (ether->destAddress[2] == 4);
+    ok &= (ether->destAddress[3] == 5);
+    ok &= (ether->destAddress[4] == 6);
+    ok &= (ether->destAddress[5] == 141);
+
+    uint8_t* copydata = &tcp->data;
+
+    copydata[0] = (copydata[0] & 0xF0); // mask QoS part and retain command type
+
+    if(ok)
+    {
+        ok = (copydata[0] == 0x70); // compare with publish Complete command
+        PayloadSize = htons(ip->length) - 20 - 20;
+    }
+
+    return ok;
+
+}
+
 bool IsSubAck(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
@@ -1238,12 +1268,21 @@ bool IsMqttPingResponse(uint8_t packet[])
 }
 
 // Gets pointer to UDP payload of frame
-uint8_t* etherGetUdpData(uint8_t packet[])
+char* etherGetUdpData(uint8_t packet[])
 {
     etherFrame* ether = (etherFrame*)packet;
     ipFrame* ip = (ipFrame*)&ether->data;
     udpFrame* udp = (udpFrame*)((uint8_t*)ip + ((ip->revSize & 0xF) * 4));
-    return &udp->data;
+    uint8_t* copydata = &udp->data;
+    uint8_t UDPLen = ntohs(udp->length) - 8;
+    static char udpdata[10];
+    uint8_t i;
+    for(i=0 ; i < UDPLen; i++)
+    {
+        udpdata[i] = (char)copydata[i];
+    }
+
+    return udpdata;
 }
 
 // Send responses to a udp datagram 
@@ -1405,10 +1444,10 @@ void SendTcpSynmessage(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     src_prt = htons(MyRand(1000,3000));
 
@@ -1696,10 +1735,10 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //populating TCP
     tcp->destPort = tcp->destPort;
@@ -1722,8 +1761,8 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
 
     //MQTT begains
     copyData = &tcp->data;
-    copyData[0] = 0x31; // for publish
-    if(copyData[0] == 0x35 || copyData[0] == 0x33 || copyData[0] == 0x34 || copyData[0] == 0x32)
+    copyData[0] = 0x33; // for publish
+    if(copyData[0] == 0x35 || copyData[0] == 0x33 || copyData[0] == 0x34 || copyData[0] == 0x32) // when QoS is non zero
     {
         AvdSYN = false;
         copyData[1] = Top_Len + Data_Len + 2 + 2;
@@ -1732,7 +1771,7 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
         AvdSYN = true;
         copyData[1] = Top_Len + Data_Len + 2;
     }
-    uint16_t *ptr = (uint16_t*)&copyData[2];
+    uint16_t *ptr = (uint16_t*)&copyData[2]; // Topic length
 
     *ptr = htons(Top_Len);
     for(i = 4; i < (Top_Len + 4); i++)
@@ -1741,7 +1780,7 @@ void SendMqttPublishClient(uint8_t packet[], char* Topic, char* Data)
     }
     if(copyData[0] == 0x35 || copyData[0] == 0x33 || copyData[0] == 0x34 || copyData[0] == 0x32)
     {
-        uint16_t *ptr_ID = (uint16_t*)&copyData[i];
+        uint16_t *ptr_ID = (uint16_t*)&copyData[i]; // support message ID
         *ptr_ID = MyRand(300,400);
         for(i = (Top_Len+4+2) ; i < (Data_Len+Top_Len+4+2) ; i++)
         {
@@ -1852,10 +1891,10 @@ void SendTcpAck1(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //populating TCP
     uint32_t temp32;
@@ -1865,8 +1904,6 @@ void SendTcpAck1(uint8_t packet[])
     tcp->destPort = tcp->sourcePort;
     tcp->sourcePort = temp16;
     tcp->destPort = htons(1883);
-
-
 
     temp32 = tcp->AckNum;
     tcp->AckNum = tcp->SeqNum;
@@ -1946,10 +1983,10 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //populating TCP
     tcp->destPort = tcp->destPort;
@@ -2019,18 +2056,19 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
     //MQTT begins
 
 
-    copyData[0] = 0x82;
-    copyData[1] = Top_Len + 2 + 2 + 1;
-    copyData[2] = 0;
-    copyData[3] = j;
-    copyData[4] = 0;
-    copyData[5] = Top_Len;
+    copyData[0] = 0x82; // Subscribe request with reserved bit set
+    copyData[1] = Top_Len + 2 + 2 + 1; // Message length
+    uint16_t *ptr = (uint16_t*)&copyData[2]; // Message ID
+    *ptr = htons(j);
+
+    uint16_t *ptr1 = (uint16_t*)&copyData[4]; // Topic Length
+    *ptr1 = htons(Top_Len);
+
     for(i = 6; i < (Top_Len + 6); i++)
     {
-        copyData[i] = (uint8_t)Topic[i-6];
+        copyData[i] = (uint8_t)Topic[i-6]; // copying the topic name
     }
-    copyData[i] = 0;
-
+    copyData[i] = 0; // QoS 0
 
     uint16_t tmp16;
 
@@ -2049,7 +2087,7 @@ void SendMqttSubscribeClient(uint8_t packet[], char* Topic)
 
     tcp->CheckSum = getEtherChecksum();
 
-    // send packet with size = ether + tcp hdr + ip header + tcp_size
+    // send packet with size = ether + tcp hdr + ip header + topic_length + Message length + Message ID
     etherPutPacket((uint8_t*)ether, 14 + 20 + ((ip->revSize & 0xF) * 4) + Top_Len + 2 + 2 + 2 + 1);
 
 }
@@ -2092,10 +2130,10 @@ void SendMqttUnSubscribeClient(uint8_t packet[], char* Topic)
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //populating TCP
     tcp->destPort = tcp->destPort;
@@ -2150,9 +2188,7 @@ void SendMqttUnSubscribeClient(uint8_t packet[], char* Topic)
                 j = 1;
                 SubTopicFrame.Topic_names++;
             }
-
     }
-
 
 
     ip->length = htons(((ip->revSize & 0xF) * 4) + 20 + Top_Len + 2 + 2 + 2);
@@ -2168,18 +2204,19 @@ void SendMqttUnSubscribeClient(uint8_t packet[], char* Topic)
     //MQTT begins
 
 
-    copyData[0] = 0xA2;
+    copyData[0] = 0xA2;// unsubscribe request
     copyData[1] = Top_Len + 2 + 2;
-    copyData[2] = 0;
-    copyData[3] = j;
-    copyData[4] = 0;
-    copyData[5] = Top_Len;
+
+    uint16_t *ptr = (uint16_t*)&copyData[2]; // Message ID
+    *ptr = htons(j);
+
+    uint16_t *ptr1 = (uint16_t*)&copyData[4]; // Topic Length
+    *ptr1 = htons(Top_Len);
+
     for(i = 6; i < (Top_Len + 6); i++)
     {
-        copyData[i] = (uint8_t)Topic[i-6];
+        copyData[i] = (uint8_t)Topic[i-6]; // copying the topic name
     }
-    //copyData[i] = 0;
-
 
     uint16_t tmp16;
 
@@ -2240,10 +2277,10 @@ void SendMqttPublishRel(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //populating TCP
     uint32_t temp32;
@@ -2283,7 +2320,7 @@ void SendMqttPublishRel(uint8_t packet[])
     //MQTT begins
 
 
-    copyData[0] = 0x60;
+    copyData[0] = 0x62;
     copyData[1] = 2;
     copyData[2] = copyData[2];
     copyData[3] = copyData[3];
@@ -2350,10 +2387,10 @@ void SendMqttPingRequest(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     tcp->destPort =  tcp->destPort;
     tcp->sourcePort = tcp->sourcePort;
@@ -2503,10 +2540,10 @@ void sendMqttDisconnectRequest(uint8_t packet[])
     ip->sourceIp[2] = 1;
     ip->sourceIp[3] = 141;
 
-    ip->destIp[0] = 192;
-    ip->destIp[1] = 168;
-    ip->destIp[2] = 1;
-    ip->destIp[3] = 190;
+    ip->destIp[0] = MqttBrkipAddress[0];
+    ip->destIp[1] = MqttBrkipAddress[1];
+    ip->destIp[2] = MqttBrkipAddress[2];
+    ip->destIp[3] = MqttBrkipAddress[3];
 
     //uint32_t temp32;
 
